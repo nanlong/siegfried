@@ -81,15 +81,15 @@ defmodule TrendTracker.Exchange.Huobi.WebSocket do
   def handle_cast({:auth, callback}, state) do
     auth_params = Helpers.auth_params(state[:access_key])
     signature = Helpers.signature(state[:url], "get", auth_params, state[:secret_key])
-    frame = Map.merge(auth_params, %{"op" => "auth", "type" => "api", "Signature" => signature})
+    frame = Map.merge(auth_params, %{op: "auth", type: "api", Signature: signature})
     state = Map.merge(state, %{bindings: state[:bindings] ++ [{:topic, "auth", callback}]})
     {:reply, {:text, Jason.encode!(frame)}, state}
   end
 
   def handle_cast({:push, frame, callback}, state) do
     id = Helpers.id(frame) || Helpers.id()
-    frame = Map.merge(frame, %{"id" => id, "cid" => id})
-    sub_topics = if frame["sub"], do: Map.merge(state[:sub_topics], %{frame["sub"] => Helpers.ts()}), else: state[:sub_topics]
+    frame = Map.merge(frame, %{id: id, cid: id})
+    sub_topics = if frame[:sub], do: Map.merge(state[:sub_topics], %{frame[:sub] => Helpers.ts()}), else: state[:sub_topics]
     state = Map.merge(state, %{bindings: state[:bindings] ++ [{:id, id, callback}], sub_topics: sub_topics})
     {:reply, {:text, Jason.encode!(frame)}, state}
   end
@@ -137,7 +137,6 @@ defmodule TrendTracker.Exchange.Huobi.WebSocket do
   end
 
   def push(pid, frame, callback \\ nil) when is_map(frame) do
-    frame = for {k, v} <- frame, into: %{}, do: {to_string(k), v}
     WebSockex.cast(pid, {:push, frame, callback})
   end
 
