@@ -101,13 +101,13 @@ defmodule TrendTracker.Exchange.Huobi.WebSocket do
   def handle_cast(:close, state), do: {:close, state}
   def handle_cast({:close, code, reason}, state), do: {:close, {code, reason}, state}
 
-  def handle_disconnect(%{reason: reason}, state) do
-    Logger.error("Huobi websocket reconnect \nreason: #{inspect(reason)}\nstate: #{inspect(state)}")
+  def handle_disconnect(reason, state) do
+    Logger.error("Huobi websocket reconnect \nreason: #{inspect(reason)}")
     {:reconnect, state}
   end
 
-  def handle_terminate(reason, state) do
-    Logger.error("Huobi websocket exit normal \nreason: #{inspect(reason)}\nstate: #{inspect(state)}")
+  def handle_terminate(reason, _state) do
+    Logger.error("Huobi websocket exit normal \nreason: #{inspect(reason)}")
     exit(:normal)
   end
 

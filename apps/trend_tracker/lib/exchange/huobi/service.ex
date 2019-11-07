@@ -12,6 +12,8 @@ defmodule TrendTracker.Exchange.Huobi.Service do
 
   alias TrendTracker.Exchange.Huobi.Helpers
 
+  require Logger
+
   @recv_timeout 10000
 
   def start_link(url, opts \\ []) do
@@ -80,14 +82,16 @@ defmodule TrendTracker.Exchange.Huobi.Service do
     if elem(resp, 0) == :ok, do: resp, else: do_request(:post, url, body, retry - 1, resp)
   end
 
-  defp response({:ok, %HTTPoison.Response{body: body}}) do
+  defp response({:ok, %HTTPoison.Response{body: body} = response}) do
+    Logger.info("#{inspect(response)}")
     try do
       {:ok, Jason.decode!(body)}
     rescue
       _ -> {:ok, body}
     end
   end
-  defp response({:error, %HTTPoison.Error{reason: reason}}) do
+  defp response({:error, %HTTPoison.Error{reason: reason} = error}) do
+    Logger.error("#{inspect(error)}")
     {:error, reason}
   end
 end
