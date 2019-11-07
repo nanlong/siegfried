@@ -1,4 +1,4 @@
-defmodule TrendTracker.Exchange.Huobi.Helpers do
+defmodule TrendTracker.Exchange.Huobi.Helper do
 
   def id do
     :microsecond

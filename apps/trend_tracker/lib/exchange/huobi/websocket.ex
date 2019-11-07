@@ -19,7 +19,7 @@ defmodule TrendTracker.Exchange.Huobi.WebSocket do
 
   use WebSockex
 
-  alias TrendTracker.Exchange.Huobi.Helpers
+  alias TrendTracker.Exchange.Huobi.Helper
 
   require Logger
 
@@ -71,7 +71,7 @@ defmodule TrendTracker.Exchange.Huobi.WebSocket do
 
   def handle_frame({:binary, msg}, %{catch_binary: pid} = state) when is_pid(pid) do
     response = binary_msg(msg, state)
-    send(pid, {:caught_binary, Helpers.unzip(msg)})
+    send(pid, {:caught_binary, Helper.unzip(msg)})
     response
   end
   def handle_frame({:binary, msg}, state) do
@@ -79,17 +79,17 @@ defmodule TrendTracker.Exchange.Huobi.WebSocket do
   end
 
   def handle_cast({:auth, callback}, state) do
-    auth_params = Helpers.auth_params(state[:access_key])
-    signature = Helpers.signature(state[:url], "get", auth_params, state[:secret_key])
+    auth_params = Helper.auth_params(state[:access_key])
+    signature = Helper.signature(state[:url], "get", auth_params, state[:secret_key])
     frame = Map.merge(auth_params, %{op: "auth", type: "api", Signature: signature})
     state = Map.merge(state, %{bindings: state[:bindings] ++ [{:topic, "auth", callback}]})
     {:reply, {:text, Jason.encode!(frame)}, state}
   end
 
   def handle_cast({:push, frame, callback}, state) do
-    id = Helpers.id(frame) || Helpers.id()
+    id = Helper.id(frame) || Helper.id()
     frame = Map.merge(frame, %{id: id, cid: id})
-    sub_topics = if frame[:sub], do: Map.merge(state[:sub_topics], %{frame[:sub] => Helpers.ts()}), else: state[:sub_topics]
+    sub_topics = if frame[:sub], do: Map.merge(state[:sub_topics], %{frame[:sub] => Helper.ts()}), else: state[:sub_topics]
     state = Map.merge(state, %{bindings: state[:bindings] ++ [{:id, id, callback}], sub_topics: sub_topics})
     {:reply, {:text, Jason.encode!(frame)}, state}
   end
@@ -115,7 +115,7 @@ defmodule TrendTracker.Exchange.Huobi.WebSocket do
     topics = Map.keys(state[:sub_topics])
 
     if not Enum.empty?(topics) do
-      ts = Helpers.ts()
+      ts = Helper.ts()
 
       topic = Enum.reduce_while(topics, nil, fn topic, _acc ->
         topic_ts = state[:sub_topics][topic]
@@ -156,7 +156,7 @@ defmodule TrendTracker.Exchange.Huobi.WebSocket do
   end
 
   defp trigger_callback(msg, state) do
-    {id, topic} = {Helpers.id(msg), Helpers.topic(msg)}
+    {id, topic} = {Helper.id(msg), Helper.topic(msg)}
 
     state[:bindings]
     |> Enum.reverse()

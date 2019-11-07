@@ -10,7 +10,7 @@ defmodule TrendTracker.Exchange.Huobi.Service do
 
   use GenServer
 
-  alias TrendTracker.Exchange.Huobi.Helpers
+  alias TrendTracker.Exchange.Huobi.Helper
 
   require Logger
 
@@ -36,9 +36,9 @@ defmodule TrendTracker.Exchange.Huobi.Service do
     query = query || %{}
 
     url = if state[:access_key] && state[:secret_key] do
-      auth_params = Helpers.auth_params(state[:access_key])
+      auth_params = Helper.auth_params(state[:access_key])
       query = Map.merge(query, auth_params)
-      signature = Helpers.signature(url, "get", query, state[:secret_key])
+      signature = Helper.signature(url, "get", query, state[:secret_key])
       query = Map.merge(query, %{Signature: signature})
       join_query(url, query)
     else
@@ -53,8 +53,8 @@ defmodule TrendTracker.Exchange.Huobi.Service do
     body = body || %{}
 
     url = if state[:access_key] && state[:secret_key] do
-      query = Helpers.auth_params(state[:access_key])
-      signature = Helpers.signature(url, "post", query, state[:secret_key])
+      query = Helper.auth_params(state[:access_key])
+      signature = Helper.signature(url, "post", query, state[:secret_key])
       query = Map.merge(query, %{Signature: signature})
       join_query(url, query)
     else
