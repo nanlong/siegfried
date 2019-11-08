@@ -74,3 +74,12 @@ config :phoenix, :plug_init_mode, :runtime
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.
 config :phoenix, :stacktrace_depth, 20
+
+# Huobi config
+config :trend_tracker, :huobi,
+  spot_api: "https://api.huobi.vn",
+  contract_api: "https://api.hbdm.vn",
+  spot_ws: "wss://api.huobi.vn/ws",
+  spot_auth_ws: "wss://api.huobi.vn/ws/v1",
+  contract_ws: "wss://dm.huobi.vn/ws",
+  contract_auth_ws: "wss://api.btcgateway.pro/notification"

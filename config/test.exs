@@ -16,3 +16,12 @@ config :siegfried_web, SiegfriedWeb.Endpoint,
 
 # Print only warnings and errors during test
 config :logger, level: :warn
+
+# Huobi config
+config :trend_tracker, :huobi,
+  spot_api: "https://api.huobi.vn",
+  contract_api: "https://api.hbdm.vn",
+  spot_ws: "wss://api.huobi.vn/ws",
+  spot_auth_ws: "wss://api.huobi.vn/ws/v1",
+  contract_ws: "wss://dm.huobi.vn/ws",
+  contract_auth_ws: "wss://api.btcgateway.pro/notification"
