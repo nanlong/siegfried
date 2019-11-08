@@ -66,11 +66,12 @@ defmodule TrendTracker.Helper do
   def indicator(kline, history, {:atr, period}, _opts) when length(history) < period - 1 do
     kline
   end
-  def indicator(kline, history, {:atr, period}, _opts) when length(history) == period - 1 do
-    indicator(kline, history, {:ma, "tr", period}, rename: "atr_#{period}")
+  def indicator(kline, history, {:atr, period}, opts) when length(history) == period - 1 do
+    key = if opts[:rename], do: opts[:rename], else: "atr_#{period}"
+    indicator(kline, history, {:ma, "tr", period}, rename: key)
   end
-  def indicator(kline, history, {:atr, period}, _opts) do
-    key = "atr_#{period}"
+  def indicator(kline, history, {:atr, period}, opts) do
+    key = if opts[:rename], do: opts[:rename], else: "atr_#{period}"
     pre_kline = List.last(history)
 
     if Map.has_key?(pre_kline, key) do
@@ -199,7 +200,7 @@ defmodule TrendTracker.Helper do
     end
   end
 
-  defp all_has_key?(list, key) do
+  def all_has_key?(list, key) do
     list |> Enum.map(&(Map.has_key?(&1, key))) |> Enum.all?()
   end
 end
