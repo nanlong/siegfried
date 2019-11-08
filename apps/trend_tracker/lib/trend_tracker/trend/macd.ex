@@ -1,6 +1,6 @@
 defmodule TrendTracker.Trend.Macd do
   @moduledoc """
-  MACD - 异同移动平均线
+  MACD - 异同移动平均线趋势过滤器
   """
   use TrendTracker.System
 
