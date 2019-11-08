@@ -34,6 +34,7 @@ defmodule TrendTracker.Exchange.Huobi.WebSocket do
       on_connect: opts[:on_connect],
       bindings: [],
       sub_topics: %{},
+      check_topics_timeout: nil,
     }
     WebSockex.start_link(url, __MODULE__, state, opts)
   end
@@ -63,8 +64,9 @@ defmodule TrendTracker.Exchange.Huobi.WebSocket do
       on_connect.()
     end
 
-    state = Map.merge(state, %{bindings: [], sub_topics: %{}})
-    Process.send_after(self(), :check_topics_timeout, @timeout)
+    # 重连情况下，取消未执行的定时检查
+    if is_reference(state[:check_topics_timeout]), do: Process.cancel_timer(state[:check_topics_timeout])
+    state = Map.merge(state, %{bindings: [], sub_topics: %{}, check_topics_timeout: nil})
 
     {:ok, state}
   end
@@ -86,16 +88,30 @@ defmodule TrendTracker.Exchange.Huobi.WebSocket do
     {:reply, {:text, Jason.encode!(frame)}, state}
   end
 
+  def handle_cast({:push, %{sub: topic} = frame, callback}, state) do
+    id = Helper.id(frame) || Helper.id()
+    frame = Map.merge(frame, %{id: id, cid: id})
+    topics = Map.merge(state[:sub_topics], %{topic => Helper.ts()})
+    state = {:id, id, callback} |> add_bindings(state) |> Map.merge(%{sub_topics: topics})
+
+    # 订阅消息时，打开定时检查
+    state = if not is_reference(state[:check_topics_timeout]) do
+      refer = Process.send_after(self(), :check_topics_timeout, @timeout)
+      Map.merge(state, %{check_topics_timeout: refer})
+    else
+      state
+    end
+
+    {:reply, {:text, Jason.encode!(frame)}, state}
+  end
   def handle_cast({:push, frame, callback}, state) do
     id = Helper.id(frame) || Helper.id()
     frame = Map.merge(frame, %{id: id, cid: id})
-    sub_topics = if frame[:sub], do: Map.merge(state[:sub_topics], %{frame[:sub] => Helper.ts()}), else: state[:sub_topics]
-    state = Map.merge(state, %{bindings: state[:bindings] ++ [{:id, id, callback}], sub_topics: sub_topics})
-    {:reply, {:text, Jason.encode!(frame)}, state}
+    {:reply, {:text, Jason.encode!(frame)}, add_bindings({:id, id, callback}, state)}
   end
 
   def handle_cast({:on_message, topic, callback}, state) do
-    {:ok, Map.merge(state, %{bindings: state[:bindings] ++ [{:topic, topic, callback}]})}
+    {:ok, add_bindings({:topic, topic, callback}, state)}
   end
 
   def handle_cast(:close, state), do: {:close, state}
@@ -106,33 +122,41 @@ defmodule TrendTracker.Exchange.Huobi.WebSocket do
     {:reconnect, state}
   end
 
-  def handle_terminate(reason, _state) do
+  def handle_terminate(reason, state) do
+    if is_reference(state[:check_topics_timeout]), do: Process.cancel_timer(state[:check_topics_timeout])
     Logger.error("Huobi websocket exit normal \nreason: #{inspect(reason)}")
     exit(:normal)
   end
 
-  def handle_info(:check_topics_timeout, state) do
-    topics = Map.keys(state[:sub_topics])
+  def handle_info(:check_topics_timeout, %{sub_topics: sub_topics} = state) when map_size(sub_topics) > 0 do
+    ts = Helper.ts()
+    topics = Map.keys(sub_topics)
 
-    if not Enum.empty?(topics) do
-      ts = Helper.ts()
+    topic = Enum.reduce_while(topics, nil, fn topic, _acc ->
+      topic_ts = sub_topics[topic]
 
-      topic = Enum.reduce_while(topics, nil, fn topic, _acc ->
-        topic_ts = state[:sub_topics][topic]
+      # 在预定时间内没有收到信息，主动关闭 websocket，会自动重连
+      if topic_ts && topic_ts < ts - @timeout do
+        WebSockex.cast(self(), :close)
+        {:halt, topic}
 
-        if topic_ts && topic_ts < ts - @timeout do
-          WebSockex.cast(self(), :close)
-          {:halt, topic}
-        else
-          {:cont, nil}
-        end
-      end)
-
-      if is_nil(topic) do
-        Process.send_after(self(), :check_topics_timeout, @timeout)
+      # 没有超时的情况
+      else
+        {:cont, nil}
       end
-    end
+    end)
 
+    # 没有超时的情况下，准备下一次检查
+    if is_nil(topic) do
+      refer = Process.send_after(self(), :check_topics_timeout, @timeout)
+      {:ok, Map.merge(state, %{check_topics_timeout: refer})}
+
+    # 有超时，websocket 会重连
+    else
+      {:ok, state}
+    end
+  end
+  def handle_info(:check_topics_timeout, state) do
     {:ok, state}
   end
 
@@ -153,6 +177,10 @@ defmodule TrendTracker.Exchange.Huobi.WebSocket do
       state = msg |> Jason.decode!() |> trigger_callback(state) |> update_topics_ts(state)
       {:ok, state}
     end
+  end
+
+  def add_bindings(binding, state) do
+    Map.merge(state, %{bindings: state[:bindings] ++ [binding]})
   end
 
   defp trigger_callback(msg, state) do
