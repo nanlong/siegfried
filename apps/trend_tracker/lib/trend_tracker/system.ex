@@ -10,6 +10,7 @@ defmodule TrendTracker.System do
 
       def start_link(opts \\ []) do
         state = %{
+          exchange: opts[:exchange],
           symbol: opts[:symbol],
           period: opts[:period],
           klines: opts[:klines],
@@ -20,8 +21,10 @@ defmodule TrendTracker.System do
       end
 
       def init(state) do
+        state = init_before(state)
         klines = generate_klines(state[:klines], state)
         state = %{state | klines: klines}
+        state = init_after(state)
         {:ok, state}
       end
 
@@ -29,6 +32,7 @@ defmodule TrendTracker.System do
       压入K线，系统更新
       """
       def handle_cast({:kline, data}, state) do
+        state = kline_before(state)
         klines = if List.last(state[:klines])["id"] == data["id"], do: Enum.slice(state[:klines], 0..-2), else: state[:klines]
 
         kline = state
@@ -38,7 +42,10 @@ defmodule TrendTracker.System do
           Helper.indicator(data, klines, arg, opts)
         end)
 
-        {:noreply, %{state | klines: klines ++ [kline]}}
+        state = %{state | klines: klines ++ [kline]}
+        state = kline_after(state)
+
+        {:noreply, state}
       end
 
       @doc """
@@ -129,35 +136,35 @@ defmodule TrendTracker.System do
         end
       end
 
+      # init 初始化勾子回调
+      def init_before(state), do: state
+      def init_after(state), do: state
+
+      # kline 更新勾子回调
+      def kline_before(state), do: state
+      def kline_after(state), do: state
+
       @doc """
       最近2条K线信息
       """
-      def klines(state) do
-        Enum.slice(state[:klines], -2, 2)
-      end
+      def klines(state), do: Enum.slice(state[:klines], -2, 2)
 
       @doc """
       K线指标参数的默认值
       """
-      def default do
-        raise("需要重写 `default/0` 函数")
-      end
+      def default, do: raise("需要重写 `default/0` 函数")
 
       @doc """
       K线指标
       """
-      def indicators(_state) do
-        raise("需要重写 `indicators/1` 函数")
-      end
+      def indicators(_state), do: raise("需要重写 `indicators/1` 函数")
 
       @doc """
       信号
       """
-      def signal(_trade, _state) do
-        raise("需要重写 `signal/2` 函数")
-      end
+      def signal(_trade, _state), do: raise("需要重写 `signal/2` 函数")
 
-      defoverridable default: 0, indicators: 1, klines: 1, signal: 2
+      defoverridable default: 0, indicators: 1, klines: 1, signal: 2, init_before: 1, init_after: 1, kline_before: 1, kline_after: 1
     end
   end
 end

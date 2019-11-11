@@ -38,6 +38,11 @@ defmodule TrendTracker.Exchange.Huobi.Helper do
     :sha256 |> :crypto.hmac(secret_key, content) |> Base.encode64()
   end
 
+  # 一张合约价值，单位美元
+  def contract_size(symbol) do
+    if symbol |> String.downcase() |> String.starts_with?("btc"), do: 100, else: 10
+  end
+
   defp atom_to_string(msg) do
     for {k, v} <- msg, into: %{}, do: {to_string(k), v}
   end
