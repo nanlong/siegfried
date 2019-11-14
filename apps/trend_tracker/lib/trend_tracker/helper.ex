@@ -39,6 +39,12 @@ defmodule TrendTracker.Helper do
     ((period - 1) * pre_atr + tr) / period
   end
 
+  def system_name(type, opts \\ []) do
+    [opts[:exchange], opts[:symbol], opts[:period], type]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(":")
+  end
+
   @doc """
   K线指标
 

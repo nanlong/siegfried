@@ -31,6 +31,7 @@ defmodule TrendTracker.MixProject do
       # {:sibling_app_in_umbrella, in_umbrella: true}
       {:httpoison, "~> 1.6"},
       {:websockex, "~> 0.4.2"},
+      {:gen_stage, "~> 0.14.3"},
     ]
   end
 end

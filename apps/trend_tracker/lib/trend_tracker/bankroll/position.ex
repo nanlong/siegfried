@@ -5,9 +5,6 @@ defmodule TrendTracker.Bankroll.Position do
 
   alias TrendTracker.Bankroll.Order
 
-  @typedoc "资金量"
-  @type position_balance :: float | nil
-
   @typedoc "仓位状态"
   @type position_status :: :empty | :hold | :full
 
@@ -41,11 +38,10 @@ defmodule TrendTracker.Bankroll.Position do
   @typedoc "开仓订单"
   @type position_orders :: list
 
-  defstruct [:balance, :status, :trend, :power, :atr, :atr_ratio, :atr_cost, :open_price, :close_price, :max, :volume, :orders]
+  defstruct [:status, :trend, :power, :atr, :atr_ratio, :atr_cost, :open_price, :close_price, :max, :volume, :orders]
 
   def new(power, atr_ratio, atr_cost) do
     %__MODULE__{
-      balance: nil,
       status: :empty,
       trend: nil,
       power: power,
@@ -67,12 +63,15 @@ defmodule TrendTracker.Bankroll.Position do
     %{position | field => value}
   end
 
-  def update_when_empty(position, atr, price, contract_size) do
-    volume = trunc((position.balance * position.atr_ratio) / (atr * position.atr_cost) * price / contract_size)
+  @doc """
+  更新仓位信息
+  """
+  def update_volume(position, balance, atr, price, contract_size) do
+    volume = (balance * position.atr_ratio) / (atr * position.atr_cost) * price / contract_size
 
     position
     |> update(:atr, atr)
-    |> update(:volume, volume)
+    |> update(:volume, trunc(volume))
   end
 
   @doc """

@@ -18,6 +18,7 @@ defmodule TrendTracker.Bankroll.Turtle do
   use TrendTracker.System
 
   alias TrendTracker.Bankroll.Position
+  alias TrendTracker.Exchange.Huobi.Helper, as: HuobiHelper
 
   def default do
     [period: 20, power: 0.5, atr_ratio: 0.01, atr_cost: 1]
@@ -52,10 +53,11 @@ defmodule TrendTracker.Bankroll.Turtle do
   end
 
   # 空仓状态下，更新仓位大小
-  def update_position(%{position: %{balance: balance, status: :empty} = position} = state) when is_float(balance) do
+  def update_position(%{position: %{status: :empty} = position} = state) do
     [pre_kline, cur_kline] = klines(state[:klines])
-    contract_size = TrendTracker.Exchange.Huobi.Helper.contract_size(state[:symbol])
-    position = Position.update_when_empty(position, pre_kline["atr"], cur_kline["close"], contract_size)
+    balance = GenServer.call(state[:systems][:account], :balance)
+    contract_size = HuobiHelper.contract_size(state[:symbol])
+    position = Position.update_volume(position, balance, pre_kline["atr"], cur_kline["close"], contract_size)
     {:ok, %{state | position: position}}
   end
   # 持仓状态下，什么也不做
@@ -84,25 +86,25 @@ defmodule TrendTracker.Bankroll.Turtle do
   end
 
   def handle_call(:balance, _from, state) do
-    {:reply, {:ok, state[:position].balance}, state}
+    {:reply, state[:position].balance, state}
   end
 
   def handle_call({:balance, balance}, _from, state) do
     position = Position.update(state[:position], :balance, balance)
-    {:reply, {:ok, position}, %{state | position: position}}
+    {:reply, position, %{state | position: position}}
   end
 
   def handle_call(:position, _from, state) do
-    {:reply, {:ok, state[:position]}, state}
+    {:reply, state[:position], state}
   end
 
   def handle_call({:open_position, trend, price, volume}, _from, state) do
     position = Position.open(state[:position], trend, price, volume)
-    {:reply, {:ok, position}, %{state | position: position}}
+    {:reply, position, %{state | position: position}}
   end
 
   def handle_call(:close_position, _from, state) do
     position = Position.close(state[:position])
-    {:reply, {:ok, position}, %{state | position: position}}
+    {:reply, position, %{state | position: position}}
   end
 end
