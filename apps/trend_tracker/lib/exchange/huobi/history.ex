@@ -61,6 +61,7 @@ defmodule TrendTracker.Exchange.Huobi.History do
         |> Enum.reverse()
         |> Enum.each(fn kline ->
           IO.puts("#{String.capitalize(to_string(state[:market]))} #{state[:symbol]} #{state[:period]} #{DateTime.from_unix!(kline["id"], :second)}")
+          IO.inspect kline
           if is_function(state[:callback]), do: state[:callback].(kline)
         end)
 

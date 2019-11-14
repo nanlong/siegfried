@@ -2,6 +2,7 @@ defmodule TrendTracker.Trader do
   use GenStage
 
   alias TrendTracker.Helper
+  alias TrendTracker.Exchange.Huobi.Account, as: HuobiAccount
 
   def start_link(opts \\ []) do
     state = %{
@@ -68,7 +69,32 @@ defmodule TrendTracker.Trader do
 
   # 根据信号，开仓或者平仓
   defp submit_order({:wait, _, _}, _state), do: nil
-  defp submit_order({_action, _trend, _trade}, _state) do
+  defp submit_order({action, _trend, _trade}, %{backtest: true} = state) do
+    account = state[:systems][:account]
 
+    case action do
+      :open ->
+        nil
+
+      :close ->
+        nil
+
+      _ -> nil
+    end
+  end
+  defp submit_order({action, _trend, _trade}, state) do
+    account = state[:systems][:account]
+
+    case {state[:exchange], action} do
+      {"huobi", :open} ->
+        params = %{}
+        HuobiAccount.open(account, params)
+
+      {"huobi", :close} ->
+        params = %{}
+        HuobiAccount.close(account, params)
+
+      _ -> {:error, nil}
+    end
   end
 end

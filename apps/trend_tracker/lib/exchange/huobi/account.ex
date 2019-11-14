@@ -11,9 +11,9 @@ defmodule TrendTracker.Exchange.Huobi.Account do
     state = %{
       balance: opts[:balance],
       symbols: opts[:symbols],
-      master: opts[:accounts][:master],
-      hedge: opts[:accounts][:hedge],
-      trade: opts[:accounts][:trade],
+      master: opts[:master],
+      hedge: opts[:hedge],
+      trade: opts[:trade],
     }
     GenServer.start_link(__MODULE__, state, opts)
   end
@@ -28,5 +28,19 @@ defmodule TrendTracker.Exchange.Huobi.Account do
       trade_contract_service: HuobiService.start_link(@huobi[:contract_api], state[:trade][:api_key]),
     }
     {:ok, Map.merge(state, services)}
+  end
+
+  @doc """
+  开仓
+  """
+  def open(_pid, _params, _opts \\ []) do
+
+  end
+
+  @doc """
+  平仓
+  """
+  def close(_pid, _params, _opts \\ []) do
+
   end
 end
