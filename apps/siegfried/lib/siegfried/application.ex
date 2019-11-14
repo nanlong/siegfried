@@ -7,7 +7,8 @@ defmodule Siegfried.Application do
 
   def start(_type, _args) do
     children = [
-      Siegfried.Repo
+      Siegfried.Repo,
+      Siegfried.HuobiSupervisor,
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Siegfried.Supervisor)

@@ -18,9 +18,13 @@ defmodule Siegfried.Exchange do
   end
 
   def create_kline(attrs \\ %{}) do
-    %Kline{}
-    |> Kline.changeset(attrs)
-    |> Repo.insert()
+    kline = Repo.get_by(Kline, exchange: attrs["exchange"], symbol: attrs["symbol"], period: attrs["period"], timestamp: attrs["timestamp"])
+
+    case kline do
+      nil -> Kline.changeset(%Kline{}, attrs)
+      %{} -> Kline.changeset(kline, attrs)
+    end
+    |> Repo.insert_or_update()
   end
 
   def kline_from_huobi(symbol, period, data) do

@@ -16,7 +16,7 @@ defmodule Siegfried.ExchangeTest do
       "open" => 5712.0,
       "vol" => 8509059.112322
     }
-    @invalid_attrs %{}
+    @invalid_attrs %{"id" => 1508947200}
 
     def kline_fixture(attrs \\ %{}) do
       valid_attrs = Exchange.kline_from_huobi("btcusdt", "1day", @valid_attrs)
@@ -49,7 +49,8 @@ defmodule Siegfried.ExchangeTest do
     end
 
     test "create_kline/1 with invalid data returns error changeset" do
-      assert {:error, %Ecto.Changeset{}} = Exchange.create_kline(@invalid_attrs)
+      invalid_attrs = Exchange.kline_from_huobi("btcusdt", "1day", @invalid_attrs)
+      assert {:error, %Ecto.Changeset{}} = Exchange.create_kline(invalid_attrs)
     end
   end
 end

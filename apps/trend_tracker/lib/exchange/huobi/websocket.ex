@@ -25,9 +25,9 @@ defmodule TrendTracker.Exchange.Huobi.WebSocket do
 
   @timeout 60_000
 
-  def start_link(url, opts \\ []) do
+  def start_link(opts \\ []) do
     state = %{
-      url: url,
+      url: opts[:url],
       access_key: opts[:access_key],
       secret_key: opts[:secret_key],
       catch_binary: opts[:catch_binary],
@@ -36,7 +36,7 @@ defmodule TrendTracker.Exchange.Huobi.WebSocket do
       sub_topics: %{},
       check_topics_timeout: nil,
     }
-    WebSockex.start_link(url, __MODULE__, state, opts)
+    WebSockex.start_link(opts[:url], __MODULE__, state, opts)
   end
 
   def handle_connect(conn, state) do

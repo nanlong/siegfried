@@ -15,8 +15,8 @@ defmodule TrendTracker.Exchange.Consumer do
   end
 
   def handle_events(events, _from, state) do
-    if is_function(state[:subscribe_to], 1) do
-      Enum.each(events, fn event -> state[:subscribe_to].(event) end)
+    if is_function(state[:on_message], 1) do
+      Enum.each(events, fn event -> state[:on_message].(event) end)
     end
     {:noreply, [], state}
   end

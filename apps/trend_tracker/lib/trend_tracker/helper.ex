@@ -43,6 +43,7 @@ defmodule TrendTracker.Helper do
     [opts[:exchange], opts[:symbol], opts[:period], type]
     |> Enum.reject(&is_nil/1)
     |> Enum.join(":")
+    |> String.to_atom()
   end
 
   @doc """

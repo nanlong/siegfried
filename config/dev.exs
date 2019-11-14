@@ -82,4 +82,5 @@ config :trend_tracker, :huobi,
   spot_ws: "wss://api.huobi.vn/ws",
   spot_auth_ws: "wss://api.huobi.vn/ws/v1",
   contract_ws: "wss://dm.huobi.vn/ws",
-  contract_auth_ws: "wss://api.btcgateway.pro/notification"
+  contract_auth_ws: "wss://api.btcgateway.pro/notification",
+  contract_symbols: ["BTC_CQ"]

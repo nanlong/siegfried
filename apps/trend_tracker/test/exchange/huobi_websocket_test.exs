@@ -8,14 +8,14 @@ defmodule TrendTracker.Exchange.Huobi.WebSocketTest do
   @secret_key "c1ffca37-657b8ed3-5a3bf04f-68600"
 
   test "contract ping" do
-    assert {:ok, _pid} = HuobiWebSocket.start_link(@huobi[:contract_ws], catch_binary: self())
+    assert {:ok, _pid} = HuobiWebSocket.start_link(url: @huobi[:contract_ws], catch_binary: self())
 
     assert_receive {:caught_binary, msg}, 10000
     assert Map.has_key?(msg, "ping")
   end
 
   test "request symbol klines" do
-    assert {:ok, pid} = HuobiWebSocket.start_link(@huobi[:contract_ws], catch_binary: self())
+    assert {:ok, pid} = HuobiWebSocket.start_link(url: @huobi[:contract_ws], catch_binary: self())
 
     HuobiWebSocket.push(pid, %{req: "market.BTC_CQ.kline.1week"}, fn msg ->
       assert msg["status"] == "ok"
@@ -26,7 +26,7 @@ defmodule TrendTracker.Exchange.Huobi.WebSocketTest do
   end
 
   test "sub symbol klines" do
-    assert {:ok, pid} = HuobiWebSocket.start_link(@huobi[:contract_ws], catch_binary: self())
+    assert {:ok, pid} = HuobiWebSocket.start_link(url: @huobi[:contract_ws], catch_binary: self())
 
     HuobiWebSocket.push(pid, %{sub: "market.BTC_CQ.kline.1week", id: "test"})
     HuobiWebSocket.on_message(pid, "market.BTC_CQ.kline.1week", fn msg ->
@@ -42,7 +42,7 @@ defmodule TrendTracker.Exchange.Huobi.WebSocketTest do
   end
 
   test "contract auth ping" do
-    assert {:ok, _pid} = HuobiWebSocket.start_link(@huobi[:contract_auth_ws], access_key: @access_key, secret_key: @secret_key, catch_binary: self())
+    assert {:ok, _pid} = HuobiWebSocket.start_link(url: @huobi[:contract_auth_ws], access_key: @access_key, secret_key: @secret_key, catch_binary: self())
 
     # 鉴权
     assert_receive {:caught_binary, msg}, 10000
