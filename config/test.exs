@@ -1,5 +1,7 @@
 use Mix.Config
 
+config :siegfried, env: :test
+
 # Configure your database
 config :siegfried, Siegfried.Repo,
   username: "postgres",

@@ -20,7 +20,7 @@ defmodule TrendTracker.Exchange.Huobi.History do
 
   def start_link(market, symbol, period, opts \\ []) do
     ws = @huobi[String.to_atom("#{market}_ws")]
-    {:ok, websocket} = HuobiWebSocket.start_link(ws)
+    {:ok, websocket} = HuobiWebSocket.start_link(url: ws)
     state = %{websocket: websocket, market: market, symbol: symbol, period: period, start: opts[:start]}
     GenServer.start_link(__MODULE__, state, opts)
   end
@@ -61,7 +61,6 @@ defmodule TrendTracker.Exchange.Huobi.History do
         |> Enum.reverse()
         |> Enum.each(fn kline ->
           IO.puts("#{String.capitalize(to_string(state[:market]))} #{state[:symbol]} #{state[:period]} #{DateTime.from_unix!(kline["id"], :second)}")
-          IO.inspect kline
           if is_function(state[:callback]), do: state[:callback].(kline)
         end)
 

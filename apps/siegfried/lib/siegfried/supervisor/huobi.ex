@@ -47,6 +47,8 @@ defmodule Siegfried.HuobiSupervisor do
     end)
     |> List.flatten()
 
+    children = if Application.get_env(:siegfried, :env) == :prod, do: children, else: []
+
     Supervisor.init(children, strategy: :one_for_one)
   end
 end
