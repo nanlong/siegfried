@@ -14,6 +14,8 @@ defmodule TrendTracker.Bankroll.Turtle do
   todo:
     1. 空仓状态下，更新仓位大小
     2. 持仓状态下，更新加仓和清仓价格
+
+  {:ok, pid} = TrendTracker.Bankroll.Turtle.start_link(exchange: "huobi", symbol: "BTC_CQ", period: "1day", source: Siegfried)
   """
   use TrendTracker.System
 
@@ -34,6 +36,7 @@ defmodule TrendTracker.Bankroll.Turtle do
   end
 
   def init_before(state) do
+    state = super(state)
     power = get_params(state, :power)
     atr_ratio = get_params(state, :atr_ratio)
     atr_cost = get_params(state, :atr_cost)
@@ -54,10 +57,11 @@ defmodule TrendTracker.Bankroll.Turtle do
 
   # 空仓状态下，更新仓位大小
   def update_position(%{position: %{status: :empty} = position} = state) do
-    [pre_kline, cur_kline] = klines(state[:klines])
+    [pre_kline, cur_kline] = klines(state)
     balance = GenServer.call(state[:systems][:account], :balance)
     contract_size = HuobiHelper.contract_size(state[:symbol])
     position = Position.update_volume(position, balance, pre_kline["atr"], cur_kline["close"], contract_size)
+    Logger.debug "Turtpe update position: #{inspect(position)}"
     {:ok, %{state | position: position}}
   end
   # 持仓状态下，什么也不做
@@ -85,26 +89,17 @@ defmodule TrendTracker.Bankroll.Turtle do
     end
   end
 
-  def handle_call(:balance, _from, state) do
-    {:reply, state[:position].balance, state}
-  end
-
-  def handle_call({:balance, balance}, _from, state) do
-    position = Position.update(state[:position], :balance, balance)
-    {:reply, position, %{state | position: position}}
-  end
-
   def handle_call(:position, _from, state) do
-    {:reply, state[:position], state}
+    {:reply, {state[:symbol], state[:position]}, state}
   end
 
   def handle_call({:open_position, trend, price, volume}, _from, state) do
     position = Position.open(state[:position], trend, price, volume)
-    {:reply, position, %{state | position: position}}
+    {:reply, {state[:symbol], position}, %{state | position: position}}
   end
 
   def handle_call(:close_position, _from, state) do
     position = Position.close(state[:position])
-    {:reply, position, %{state | position: position}}
+    {:reply, {state[:symbol], position}, %{state | position: position}}
   end
 end

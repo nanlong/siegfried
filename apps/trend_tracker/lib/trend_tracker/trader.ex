@@ -4,6 +4,8 @@ defmodule TrendTracker.Trader do
   alias TrendTracker.Helper
   alias TrendTracker.Exchange.Huobi.Account, as: HuobiAccount
 
+  require Logger
+
   def start_link(opts \\ []) do
     state = %{
       exchange: opts[:exchange],
@@ -14,11 +16,11 @@ defmodule TrendTracker.Trader do
   end
 
   def init(state) do
-    state = Map.merge(state, %{
-      trend_period: GenServer.call(state[:systems][:trend], :period),
-      breakout_period: GenServer.call(state[:systems][:breakout], :period),
-      bankroll_period: GenServer.call(state[:systems][:bankroll], :period)
-    })
+    {_symbol, trend_period} = GenServer.call(state[:systems][:trend], :period)
+    {_symbol, breakout_period} = GenServer.call(state[:systems][:breakout], :period)
+    {_symbol, bankroll_period} = GenServer.call(state[:systems][:bankroll], :period)
+
+    state = Map.merge(state, %{trend_period: trend_period, breakout_period: breakout_period, bankroll_period: bankroll_period})
 
     opts = state |> Map.take([:exchange, :symbol]) |> Map.to_list()
     producer = Helper.system_name("producer", opts)
@@ -39,7 +41,8 @@ defmodule TrendTracker.Trader do
 
             Enum.each(systems, fn {system, system_period} ->
               if symbol == state[:symbol] && period == system_period do
-                GenServer.cast(state[:symbols][system], {:kline, data})
+                Logger.debug "Trader push kline: #{system} #{symbol} #{period}"
+                GenServer.cast(state[:systems][system], {:kline, data})
               end
             end)
 
@@ -48,6 +51,7 @@ defmodule TrendTracker.Trader do
 
             if symbol == state[:symbol] && trade do
               signal = system_signal(trade, state)
+              Logger.debug "Trader signal: #{inspect(signal)}"
               submit_order(signal, state)
             end
 
@@ -62,15 +66,16 @@ defmodule TrendTracker.Trader do
 
   # 根据持仓状态，获取系统信号
   defp system_signal(trade, state) do
-    position = GenServer.call(state[:symbols][:bankroll], :position)
-    system = if position.status == :empty, do: state[:symbols][:breakout], else: state[:symbols][:bankroll]
-    GenServer.call(system, {:signal, trade})
+    {_symbol, position} = GenServer.call(state[:systems][:bankroll], :position)
+    system = if position.status == :empty, do: state[:systems][:breakout], else: state[:systems][:bankroll]
+    {_symbol, signal} = GenServer.call(system, {:signal, trade})
+    signal
   end
 
   # 根据信号，开仓或者平仓
   defp submit_order({:wait, _, _}, _state), do: nil
   defp submit_order({action, _trend, _trade}, %{backtest: true} = state) do
-    account = state[:systems][:account]
+    _account = state[:systems][:account]
 
     case action do
       :open ->

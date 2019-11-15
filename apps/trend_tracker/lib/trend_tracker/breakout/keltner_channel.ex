@@ -32,7 +32,7 @@ defmodule TrendTracker.Breakout.KeltnerChannel do
       upper = kline[ema_key] + kline[atr_key] * power
       lower = kline[ema_key] - kline[atr_key] * power
 
-      kline = Map.take(kline, ["id", "datetime", "update_at", "open", "close", "high", "low"])
+      kline = Map.take(kline, ["id", "datetime", "updated_at", "open", "close", "high", "low"])
       Map.merge(kline, %{"upper" => upper, "mid" => kline[ema_key], "lower" => lower})
     end)
   end

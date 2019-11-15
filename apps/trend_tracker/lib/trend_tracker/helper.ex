@@ -40,10 +40,19 @@ defmodule TrendTracker.Helper do
   end
 
   def system_name(type, opts \\ []) do
-    [opts[:exchange], opts[:symbol], opts[:period], type]
+    [opts[:title], opts[:exchange], opts[:symbol], opts[:period], type]
     |> Enum.reject(&is_nil/1)
     |> Enum.join(":")
     |> String.to_atom()
+  end
+
+  def transform_timestamp(timestamp) do
+    timestamp
+    |> DateTime.from_unix!()
+    |> DateTime.to_iso8601()
+    |> Timex.parse!("{ISO:Extended}")
+    |> Timex.Timezone.convert("Asia/Shanghai")
+    |> DateTime.to_string()
   end
 
   @doc """

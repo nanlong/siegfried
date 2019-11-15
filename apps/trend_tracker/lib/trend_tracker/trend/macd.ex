@@ -1,6 +1,8 @@
 defmodule TrendTracker.Trend.Macd do
   @moduledoc """
   MACD - 异同移动平均线趋势过滤器
+
+  {:ok, pid} = TrendTracker.Trend.Macd.start_link(exchange: "huobi", symbol: "BTC_CQ", period: "1week", source: Siegfried)
   """
   use TrendTracker.System
 
@@ -28,17 +30,19 @@ defmodule TrendTracker.Trend.Macd do
     state[:klines]
     |> Enum.slice(-2, 2)
     |> Enum.map(fn kline ->
-      Map.take(kline, ["id", "datetime", "update_at", "open", "close", "high", "low", "dif", "dea", "hist"])
+      Map.take(kline, ["id", "datetime", "updated_at", "open", "close", "high", "low", "dif", "dea", "hist"])
     end)
   end
 
   def handle_call(:trend, _from, state) do
     [pre_kline, cur_kline] = Enum.slice(state[:klines], -2, 2)
 
-    cond do
+    trend = cond do
       cur_kline["hist"] > pre_kline["hist"] && cur_kline["dif"] > cur_kline["dea"] -> :long
       cur_kline["hist"] < pre_kline["hist"] && cur_kline["dif"] < cur_kline["dea"] -> :short
       true -> nil
     end
+
+    {:reply, {state[:symbol], trend}, state}
   end
 end

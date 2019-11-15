@@ -43,10 +43,11 @@ defmodule TrendTracker.Breakout.BollingerBands do
     |> Enum.slice(-2, 2)
     |> Enum.map(fn kline ->
       upper = kline[ma_key] + kline[md_key] * power
+      mid = kline[ma_key]
       lower = kline[ma_key] - kline[md_key] * power
 
-      kline = Map.take(kline, ["id", "datetime", "update_at", "open", "close", "high", "low"])
-      Map.merge(kline, %{"upper" => upper, "mid" => kline[ma_key], "lower" => lower})
+      kline = Map.take(kline, ["id", "datetime", "updated_at", "open", "close", "high", "low"])
+      Map.merge(kline, %{"upper" => upper, "mid" => mid, "lower" => lower})
     end)
   end
 

@@ -22,10 +22,12 @@ defmodule TrendTracker.Trend.Ema do
   def handle_call(:trend, _from, state) do
     [_pre_kline, cur_kline] = Enum.slice(state[:klines], -2, 2)
 
-    cond do
+    trend = cond do
       cur_kline["ema_fast"] > cur_kline["ema_slow"] -> :long
       cur_kline["ema_fast"] < cur_kline["ema_slow"] -> :short
       true -> nil
     end
+
+    {:reply, {state[:symbol], trend}, state}
   end
 end

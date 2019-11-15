@@ -19,15 +19,24 @@ defmodule TrendTracker.Exchange.Huobi.Account do
   end
 
   def init(state) do
-    services = %{
-      master_spot_service: HuobiService.start_link(@huobi[:spot_api], state[:master][:api_key]),
-      master_contract_service: HuobiService.start_link(@huobi[:contract_api], state[:master][:api_key]),
-      hedge_spot_service: HuobiService.start_link(@huobi[:spot_api], state[:hedge][:api_key]),
-      hedge_contract_service: HuobiService.start_link(@huobi[:contract_api], state[:hedge][:api_key]),
-      trade_spot_service: HuobiService.start_link(@huobi[:spot_api], state[:trade][:api_key]),
-      trade_contract_service: HuobiService.start_link(@huobi[:contract_api], state[:trade][:api_key]),
-    }
+    services = if state[:master] && state[:hedge] && state[:trade] do
+      %{
+        master_spot_service: HuobiService.start_link(@huobi[:spot_api], state[:master][:api_key]),
+        master_contract_service: HuobiService.start_link(@huobi[:contract_api], state[:master][:api_key]),
+        hedge_spot_service: HuobiService.start_link(@huobi[:spot_api], state[:hedge][:api_key]),
+        hedge_contract_service: HuobiService.start_link(@huobi[:contract_api], state[:hedge][:api_key]),
+        trade_spot_service: HuobiService.start_link(@huobi[:spot_api], state[:trade][:api_key]),
+        trade_contract_service: HuobiService.start_link(@huobi[:contract_api], state[:trade][:api_key]),
+      }
+    else
+      %{}
+    end
+
     {:ok, Map.merge(state, services)}
+  end
+
+  def handle_call(:balance, _from, state) do
+    {:reply, state[:balance], state}
   end
 
   @doc """

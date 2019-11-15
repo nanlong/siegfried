@@ -13,6 +13,7 @@ defmodule TrendTracker.System do
           exchange: opts[:exchange],
           symbol: opts[:symbol],
           period: opts[:period],
+          source: opts[:source],
           klines: opts[:klines],
           systems: opts[:systems],
           indicators: opts[:indicators],
@@ -32,12 +33,14 @@ defmodule TrendTracker.System do
       压入K线，系统更新
       """
       def handle_cast({:kline, data}, state) do
+        Logger.debug "System accept kline data: #{inspect(data)}"
         state = kline_before(state)
-        klines = if List.last(state[:klines])["id"] == data["id"], do: Enum.slice(state[:klines], 0..-2), else: state[:klines]
+        kline = TrendTracker.Exchange.Huobi.kline(state[:exchange], state[:symbol], state[:period], data)
+        klines = if List.last(state[:klines])["timestamp"] == data["id"], do: Enum.slice(state[:klines], 0..-2), else: state[:klines]
 
         kline = state
         |> indicators()
-        |> Enum.reduce(data, fn arg, data ->
+        |> Enum.reduce(kline, fn arg, data ->
           {arg, opts} = parse_indicator(arg)
           Helper.indicator(data, klines, arg, opts)
         end)
@@ -52,28 +55,28 @@ defmodule TrendTracker.System do
       ping pong
       """
       def handle_call(:ping, _from, state) do
-        {:reply, :pong, state}
+        {:reply, {state[:symbol], :pong}, state}
       end
 
       @doc """
       K线级别
       """
       def handle_call(:period, _from, state) do
-        {:reply, state[:period], state}
+        {:reply, {state[:symbol], state[:period]}, state}
       end
 
       @doc """
       最近2个K线数据
       """
       def handle_call(:klines, _from, state) do
-        {:reply, klines(state), state}
+        {:reply, {state[:symbol], klines(state)}, state}
       end
 
       @doc """
       信号
       """
       def handle_call({:signal, trade}, _from, state) do
-        {:reply, signal(trade, state), state}
+        {:reply, {state[:symbol], signal(trade, state)}, state}
       end
 
       @doc """
@@ -105,7 +108,7 @@ defmodule TrendTracker.System do
       """
       def parse_indicator(arg) do
         cond do
-          is_tuple(arg) ->
+          is_atom(arg) or is_tuple(arg) ->
             {arg, []}
 
           is_list(arg) ->
@@ -122,8 +125,9 @@ defmodule TrendTracker.System do
       访问趋势系统，获取当前趋势
       """
       def get_trend(state) do
-        if state[:system][:trend] do
-          GenServer.call(state[:system][:trend], :trend)
+        if state[:systems][:trend] do
+          {_symbol, trend} = GenServer.call(state[:systems][:trend], :trend)
+          trend
         end
       end
 
@@ -131,13 +135,23 @@ defmodule TrendTracker.System do
       访问资金管理系统，获取当前仓位信息
       """
       def get_position(state) do
-        if state[:system][:bankroll] do
-          GenServer.call(state[:system][:bankroll], :position)
+        if state[:systems][:bankroll] do
+          {_symbol, position} = GenServer.call(state[:systems][:bankroll], :position)
+          position
         end
       end
 
       # init 初始化勾子回调
-      def init_before(state), do: state
+      def init_before(state) do
+        klines =
+          if state[:source] && is_nil(state[:klines]) do
+            state[:source].list_klines(state[:exchange], state[:symbol], state[:period])
+          else
+            state[:klines] || []
+          end
+
+        %{state | klines: klines}
+      end
       def init_after(state), do: state
 
       # kline 更新勾子回调

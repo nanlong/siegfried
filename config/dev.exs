@@ -9,7 +9,8 @@ config :siegfried, Siegfried.Repo,
   database: "siegfried_dev",
   hostname: "localhost",
   show_sensitive_data_on_connection_error: true,
-  pool_size: 10
+  pool_size: 10,
+  log: false
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
@@ -68,7 +69,9 @@ config :siegfried_web, SiegfriedWeb.Endpoint,
   ]
 
 # Do not include metadata nor timestamps in development logs
-config :logger, :console, format: "[$level] $message\n"
+config :logger, :console,
+  level: :info,
+  format: "[$level] $message\n"
 
 # Initialize plugs at runtime for faster development compilation
 config :phoenix, :plug_init_mode, :runtime
