@@ -5,40 +5,57 @@ defmodule TrendTracker.Breakout.DonchainChannel do
   use TrendTracker.System
 
   def default do
-    [upper: 20, lower: 10]
+    [fast: 10, slow: 20]
   end
 
   def indicators(state) do
-    upper = get_params(state, :upper)
-    lower = get_params(state, :lower)
+    fast = get_params(state, :fast)
+    slow = get_params(state, :slow)
 
     [
-      [{:max, "high", upper}, rename: "upper_long"],
-      [{:min, "low", lower}, rename: "lower_long"],
-      [{:min, "low", upper}, rename: "lower_short"],
-      [{:max, "high", lower}, rename: "upper_short"],
+      # 10日通道
+      [{:max, "high", fast}, rename: "max_high_fast"],
+      [{:min, "low", fast}, rename: "min_low_fast"],
+
+      # 20日通道
+      [{:max, "high", slow}, rename: "max_high_slow"],
+      [{:min, "low", slow}, rename: "min_low_slow"],
     ]
   end
 
+  def breakout(state) do
+    case klines(state) do
+      [%{"max_high_slow" => long_open, "min_low_slow" => short_open, "max_high_fast" => short_close, "min_low_fast" => long_close}, _cur_kline] ->
+        %{long_open: long_open, long_close: long_close, short_open: short_open, short_close: short_close}
+
+      _ -> nil
+    end
+  end
+
   def signal(trade, state) do
-    [pre_kline, _cur_kline] = klines(state)
     trend = get_trend(state)
     position = get_position(state)
 
-    cond do
-      position.status == :filled && position.trend == :long && trade["price"] < pre_kline["lower_long"] ->
-        {:close, position.trend, trade}
+    case breakout(state) do
+      %{long_open: long_open, long_close: long_close, short_open: short_open, short_close: short_close} ->
+        cond do
+          position.status == :filled && position.trend == :long && trade["price"] <= long_close  ->
+            {:close, position.trend, trade}
 
-      position.status == :filled && position.trend == :short && trade["price"] > pre_kline["upper_short"] ->
-        {:close, position.trend, trade}
+          position.status == :filled && position.trend == :short && trade["price"] >= short_close ->
+            {:close, position.trend, trade}
 
-      position.status == :empty && trend == :long && trade["price"] > pre_kline["upper_long"] ->
-        {:open, trend, trade}
+          position.status == :empty && trend == :long && trade["price"] >= long_open ->
+            {:open, trend, trade}
 
-      position.status == :empty && trend == :short && trade["price"] < pre_kline["lower_short"] ->
-        {:open, trend, trade}
+          position.status == :empty && trend == :short && trade["price"] <= short_open ->
+            {:open, trend, trade}
 
-      true ->
+          true ->
+            {:wait, trend, trade}
+        end
+
+      _ ->
         {:wait, trend, trade}
     end
   end

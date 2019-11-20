@@ -24,6 +24,7 @@ defmodule Siegfried.Exchange.Kline do
     kline
     |> cast(attrs, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)
+    |> unique_constraint(:exchange, name: :klines_exchange_symbol_period_timestamp_index)
     |> set_datetime()
   end
 

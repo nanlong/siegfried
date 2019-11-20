@@ -11,6 +11,7 @@ defmodule TrendTracker.Trader do
       exchange: opts[:exchange],
       symbol: opts[:symbol],
       systems: opts[:systems],
+      backtest: opts[:backtest],
     }
     GenStage.start_link(__MODULE__, state, opts)
   end
@@ -22,7 +23,7 @@ defmodule TrendTracker.Trader do
 
     state = Map.merge(state, %{trend_period: trend_period, breakout_period: breakout_period, bankroll_period: bankroll_period})
 
-    opts = state |> Map.take([:exchange, :symbol]) |> Map.to_list()
+    opts = state |> Map.take([:exchange, :symbol, :backtest]) |> Map.to_list()
     producer = Helper.system_name("producer", opts)
 
     {:consumer, state, subscribe_to: [producer]}
@@ -74,7 +75,8 @@ defmodule TrendTracker.Trader do
 
   # 根据信号，开仓或者平仓
   defp submit_order({:wait, _, _}, _state), do: nil
-  defp submit_order({action, _trend, _trade}, %{backtest: true} = state) do
+  defp submit_order({action, trend, trade}, %{backtest: true} = state) do
+    IO.inspect "backtest submit order: #{inspect({action, trend, trade})}"
     _account = state[:systems][:account]
 
     case action do

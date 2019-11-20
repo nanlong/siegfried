@@ -35,12 +35,15 @@ defmodule TrendTracker.Worker do
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
+  @doc """
+  开始
+  """
   def start(pid, opts) do
-    account_name = Helper.system_name("account", Keyword.take(opts, [:name, :exchange]))
+    account_name = Helper.system_name("account", Keyword.take(opts, [:title, :exchange, :backtest]))
     {:ok, _account_pid} = start_child(pid, {HuobiAccount, [name: account_name] ++ Keyword.take(opts, [:balance, :symbols])})
 
     Enum.each(opts[:symbols], fn symbol ->
-      public_opts = Keyword.take(opts, [:title, :exchange, :source]) ++ [symbol: symbol]
+      public_opts = Keyword.take(opts, [:title, :exchange, :source, :backtest]) ++ [symbol: symbol]
 
       trend_name = Helper.system_name("trend", public_opts)
       breakout_name = Helper.system_name("breakout", public_opts)
@@ -63,6 +66,9 @@ defmodule TrendTracker.Worker do
     end)
   end
 
+  @doc """
+  停止
+  """
   def stop(pid) do
     pid
     |> DynamicSupervisor.which_children()
@@ -72,13 +78,23 @@ defmodule TrendTracker.Worker do
     end)
   end
 
+  @doc """
+  趋势
+  """
   def trend(pid), do: system_data(pid, trend_modules(), :trend)
 
+  @doc """
+  持仓
+  """
   def position(pid), do: system_data(pid, Turtle, :position)
 
-  def klines(pid, :trend), do: system_data(pid, trend_modules(), :klines)
-  def klines(pid, :breakout), do: system_data(pid, breakout_modules(), :klines)
-  def klines(pid, :bankroll), do: system_data(pid, Turtle, :klines)
+  @doc """
+  k线
+  """
+  def kline(pid), do: Map.new([:trend, :breakout, :bankroll], &({&1, kline(pid, &1)}))
+  def kline(pid, :trend), do: system_data(pid, trend_modules(), :klines)
+  def kline(pid, :breakout), do: system_data(pid, breakout_modules(), :klines)
+  def kline(pid, :bankroll), do: system_data(pid, Turtle, :klines)
 
   defp trend_modules, do: [Macd, Ema]
 
@@ -91,6 +107,7 @@ defmodule TrendTracker.Worker do
   defp breakout_module("KeltnerChannel"), do: KeltnerChannel
   defp breakout_module("DonchainChanel"), do: DonchainChanel
 
+  # 系统通信，获取相关模块的指定数据
   defp system_data(pid, modules, field) do
     pids = children(pid, modules)
     Map.new(pids, fn child_pid -> GenServer.call(child_pid, field) end)

@@ -8,6 +8,22 @@ defmodule Siegfried.Exchange do
 
   alias Siegfried.Exchange.Kline
 
+
+  def get_kline(exchange, symbol, period, from) do
+    day_seconds = 60 * 60 * 24
+    week_seconds = day_seconds * 7
+    kline = list_klines(exchange, symbol, period, from - week_seconds, from) |> List.last()
+
+    if kline do
+      kline_1min = list_klines(exchange, symbol, "1min", from, from) |> List.first()
+      close = if kline_1min && kline_1min.timestamp < kline.timestamp + day_seconds, do: kline_1min.timestamp, else: kline.close
+      data = list_klines(exchange, symbol, "1min", kline.timestamp, from)
+      low = data |> Enum.map(&(&1.low)) |> Enum.min()
+      high = data |> Enum.map(&(&1.high)) |> Enum.max()
+      %{kline | close: close, low: low, high: high}
+    end
+  end
+
   def list_klines(exchange, symbol, period, from \\ nil, to \\ nil) do
     from = from || 0
     to = to || :os.system_time(:second)
@@ -20,15 +36,15 @@ defmodule Siegfried.Exchange do
       order_by: [asc: k.timestamp]
 
     klines = Repo.all(query)
-    kline = List.first(klines)
 
     # 合约K线可能比较少，使用现货的K线数据
-    if exchange == "huobi" and String.contains?(symbol, "_") and not is_nil(kline) and kline.timestamp > from do
+    if exchange == "huobi" and String.contains?(symbol, "_") do
       kline = List.first(klines)
       currency = symbol |> String.split("_") |> List.first() |> String.downcase()
       symbol = "#{currency}usdt"
-      spot_klines = list_klines(exchange, symbol, period, from, kline.timestamp)
-      spot_klines ++ Enum.slice(klines, 1..-1)
+      to = if not is_nil(kline) and kline.timestamp > from, do: kline.timestamp, else: to
+      spot_klines = list_klines(exchange, symbol, period, from, to)
+      Enum.slice(spot_klines, 0..-2) ++ klines
     else
       klines
     end

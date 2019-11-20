@@ -35,14 +35,15 @@ defmodule TrendTracker.System do
       def handle_cast({:kline, data}, state) do
         Logger.debug "System accept kline data: #{inspect(data)}"
         state = kline_before(state)
-        kline = TrendTracker.Exchange.Huobi.kline(state[:exchange], state[:symbol], state[:period], data)
-        klines = if List.last(state[:klines])["timestamp"] == data["id"], do: Enum.slice(state[:klines], 0..-2), else: state[:klines]
+        new_kline = TrendTracker.Exchange.Huobi.kline(state[:exchange], state[:symbol], state[:period], data)
+        last_kline = List.last(state[:klines])
+        klines = if last_kline["timestamp"] == new_kline["timestamp"], do: Enum.slice(state[:klines], 0..-2), else: state[:klines]
 
         kline = state
         |> indicators()
-        |> Enum.reduce(kline, fn arg, data ->
+        |> Enum.reduce(new_kline, fn arg, kline ->
           {arg, opts} = parse_indicator(arg)
-          Helper.indicator(data, klines, arg, opts)
+          Helper.indicator(kline, klines, arg, opts)
         end)
 
         state = %{state | klines: klines ++ [kline]}
@@ -77,6 +78,17 @@ defmodule TrendTracker.System do
       """
       def handle_call({:signal, trade}, _from, state) do
         {:reply, {state[:symbol], signal(trade, state)}, state}
+      end
+
+      @doc """
+      突破系统，突破价
+      """
+      def handle_call(:breakout, _from, state) do
+        {:reply, {state[:symbol], breakout(state)}, state}
+      end
+
+      def take_kline(kline) do
+        Map.take(kline, ["exchange", "symbol", "period", "timestamp", "datetime", "updated_at", "open", "close", "high", "low"])
       end
 
       @doc """
@@ -141,6 +153,26 @@ defmodule TrendTracker.System do
         end
       end
 
+      @doc """
+      K线指标参数的默认值
+      """
+      def default, do: raise("需要重写 `default/0` 函数")
+
+      @doc """
+      K线指标
+      """
+      def indicators(_state), do: raise("需要重写 `indicators/1` 函数")
+
+      @doc """
+      最近2条K线信息
+      """
+      def klines(state), do: Enum.slice(state[:klines], -2, 2)
+
+      @doc """
+      信号
+      """
+      def signal(_trade, _state), do: raise("需要重写 `signal/2` 函数")
+
       # init 初始化勾子回调
       def init_before(state) do
         klines =
@@ -158,27 +190,9 @@ defmodule TrendTracker.System do
       def kline_before(state), do: state
       def kline_after(state), do: state
 
-      @doc """
-      最近2条K线信息
-      """
-      def klines(state), do: Enum.slice(state[:klines], -2, 2)
+      def breakout(_state), do: nil
 
-      @doc """
-      K线指标参数的默认值
-      """
-      def default, do: raise("需要重写 `default/0` 函数")
-
-      @doc """
-      K线指标
-      """
-      def indicators(_state), do: raise("需要重写 `indicators/1` 函数")
-
-      @doc """
-      信号
-      """
-      def signal(_trade, _state), do: raise("需要重写 `signal/2` 函数")
-
-      defoverridable default: 0, indicators: 1, klines: 1, signal: 2, init_before: 1, init_after: 1, kline_before: 1, kline_after: 1
+      defoverridable default: 0, indicators: 1, klines: 1, signal: 2, init_before: 1, init_after: 1, kline_before: 1, kline_after: 1, breakout: 1
     end
   end
 end

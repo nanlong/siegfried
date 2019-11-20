@@ -57,36 +57,53 @@ defmodule TrendTracker.Bankroll.Turtle do
 
   # 空仓状态下，更新仓位大小
   def update_position(%{position: %{status: :empty} = position} = state) do
-    [pre_kline, cur_kline] = klines(state)
-    balance = GenServer.call(state[:systems][:account], :balance)
-    contract_size = HuobiHelper.contract_size(state[:symbol])
-    position = Position.update_volume(position, balance, pre_kline["atr"], cur_kline["close"], contract_size)
-    Logger.debug "Turtpe update position: #{inspect(position)}"
-    {:ok, %{state | position: position}}
+    symbol = state[:symbol]
+
+    case klines(state) do
+      [%{"atr" => _} = pre_kline, %{"close" => _} = cur_kline] ->
+        contract_size = HuobiHelper.contract_size(state[:symbol])
+        balance = GenServer.call(state[:systems][:account], :balance)
+        {^symbol, trend} = GenServer.call(state[:systems][:trend], :trend)
+        {^symbol, price} = GenServer.call(state[:systems][:breakout], :breakout)
+
+        # 更新开仓价格
+        position = Position.update(position, :open_price, price[String.to_atom("#{trend}_open")])
+        # 更新一仓规模
+        position = Position.update_volume(position, balance, pre_kline["atr"], cur_kline["close"], contract_size)
+
+        Logger.debug "Turtpe update position: #{inspect(position)}"
+        {:ok, %{state | position: position}}
+
+      _ ->
+        {:ok, state}
+    end
   end
   # 持仓状态下，什么也不做
-  def update_position(state), do: {:ok, state}
+  def update_position(state), do: state
 
   def signal(trade, %{position: %{status: :empty} = position}) do
     {:wait, position.trend, trade}
   end
-  def signal(trade, %{position: position}) do
+  def signal(trade, %{position: %{close_price: close_price, open_price: open_price} = position}) when is_float(close_price) and is_float(open_price) do
     cond do
-      position.trend == :long && trade["price"] < position.close_price ->
+      position.trend == :long && trade["price"] < close_price ->
         {:close, position.trend, trade}
 
-      position.trend == :short && trade["price"] > position.close_price ->
+      position.trend == :short && trade["price"] > close_price ->
         {:close, position.trend, trade}
 
-      position.status == :hold && position.trend == :long && trade["price"] > position.open_price ->
+      position.status == :hold && position.trend == :long && trade["price"] > open_price ->
         {:open, position.trend, trade}
 
-      position.status == :hold && position.trend == :short && trade["price"] < position.open_price ->
+      position.status == :hold && position.trend == :short && trade["price"] < open_price ->
         {:open, position.trend, trade}
 
       true ->
         {:wait, position.trend, trade}
     end
+  end
+  def signal(trade, state) do
+    raise("获取信号时，资金管理系统数据异常：\nstate: #{inspect(state)}}\ntrade: #{inspect(trade)}")
   end
 
   def handle_call(:position, _from, state) do

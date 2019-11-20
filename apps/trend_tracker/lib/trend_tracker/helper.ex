@@ -40,7 +40,9 @@ defmodule TrendTracker.Helper do
   end
 
   def system_name(type, opts \\ []) do
-    [opts[:title], opts[:exchange], opts[:symbol], opts[:period], type]
+    backtest = if opts[:backtest], do: "backtest"
+
+    [opts[:title], opts[:exchange], opts[:symbol], opts[:period], type, backtest]
     |> Enum.reject(&is_nil/1)
     |> Enum.join(":")
     |> String.to_atom()

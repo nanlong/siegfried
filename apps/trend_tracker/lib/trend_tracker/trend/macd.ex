@@ -29,20 +29,28 @@ defmodule TrendTracker.Trend.Macd do
   def klines(state) do
     state[:klines]
     |> Enum.slice(-2, 2)
-    |> Enum.map(fn kline ->
-      Map.take(kline, ["id", "datetime", "updated_at", "open", "close", "high", "low", "dif", "dea", "hist"])
+    |> Enum.map(fn
+      %{"dif" => _, "dea" => _, "hist" => _} = kline ->
+        Map.merge(take_kline(kline), Map.take(kline, ["dif", "dea", "hist"]))
+
+      kline ->
+        take_kline(kline)
     end)
   end
 
   def handle_call(:trend, _from, state) do
-    [pre_kline, cur_kline] = Enum.slice(state[:klines], -2, 2)
+    case klines(state) do
+      [%{"hist" => _} = pre_kline, %{"dif" => _, "dea" => _, "hist" => _} = cur_kline] ->
+        trend = cond do
+          cur_kline["hist"] > pre_kline["hist"] && cur_kline["dif"] > cur_kline["dea"] -> :long
+          cur_kline["hist"] < pre_kline["hist"] && cur_kline["dif"] < cur_kline["dea"] -> :short
+          true -> nil
+        end
 
-    trend = cond do
-      cur_kline["hist"] > pre_kline["hist"] && cur_kline["dif"] > cur_kline["dea"] -> :long
-      cur_kline["hist"] < pre_kline["hist"] && cur_kline["dif"] < cur_kline["dea"] -> :short
-      true -> nil
+        {:reply, {state[:symbol], trend}, state}
+
+      _ ->
+        {:reply, {state[:symbol], nil}, state}
     end
-
-    {:reply, {state[:symbol], trend}, state}
   end
 end
