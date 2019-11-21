@@ -1,13 +1,16 @@
 defmodule Siegfried do
   alias Siegfried.Exchange
+  alias Siegfried.Exchange.Kline
   alias TrendTracker.Exchange.Huobi.History, as: HuobiHistory
+
+  defdelegate transform_timestamp(timestamp), to: Kline
 
   def first_kline(exchange, symbol, period) do
     exchange |> list_klines(symbol, period) |> List.first()
   end
 
-  def get_kline(exchange, symbol, period, from) do
-    kline = Exchange.get_kline(exchange, symbol, period, from)
+  def get_kline(exchange, symbol, period, from, cache) do
+    kline = Exchange.get_kline(exchange, symbol, period, from, cache)
     if kline, do: %{"id" => kline.timestamp, "open" => kline.open, "close" => kline.close, "low" => kline.low, "high" => kline.high}
   end
 

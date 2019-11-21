@@ -37,26 +37,25 @@ defmodule TrendTracker.Backtest do
 
     Enum.each(opts[:symbols], fn symbol -> Task.async(fn ->
       kline = opts[:source].first_kline(opts[:exchange], symbol, "1day")
-      push_data(pid, producers[symbol], opts[:source], opts[:exchange], symbol, kline["timestamp"])
+      push_data(pid, producers[symbol], opts[:source], opts[:exchange], symbol, kline["timestamp"], [])
     end) end)
   end
 
-  defp push_data(worker, producer, source, exchange, symbol, from) do
-    klines_1min = source.list_klines(exchange, symbol, "1min", from, from + 1440 * 60)
+  defp push_data(worker, producer, source, exchange, symbol, from, cache) do
+    start_time = :os.system_time(:microsecond)
+    klines_1min = source.list_klines(exchange, symbol, "1min", from, from + 86400)
+    data = Enum.slice(klines_1min, 0..-2)
+    cache = cache ++ data
+    first_kline_1min = List.first(klines_1min)
     last_kline_1min = List.last(klines_1min)
 
-    Enum.each(klines_1min, fn kline_1min ->
-      if String.contains?(kline_1min["datetime"], "00:00:00+08:00") do
-        Logger.info("#{symbol} 数据时间：#{kline_1min["datetime"]}")
-        # Logger.info("trend: #{inspect(Worker.trend(worker))}")
-        # Logger.info("trend kline: #{inspect(Worker.kline(worker, :trend))}")
-        # Logger.info("breakout kline: #{inspect(Worker.kline(worker, :breakout))}")
-        # Logger.info("position: #{inspect(Worker.position(worker))}")
-        # Logger.info("bankroll kline: #{inspect(Worker.kline(worker, :bankroll))}")
-      end
+    if first_kline_1min do
+      Logger.info("#{symbol} #{first_kline_1min["timestamp"]} 数据时间：#{first_kline_1min["datetime"]}")
+    end
 
-      kline_1day = source.get_kline(exchange, symbol, "1day", kline_1min["timestamp"])
-      kline_1week = source.get_kline(exchange, symbol, "1week", kline_1min["timestamp"])
+    Enum.each(data, fn kline_1min ->
+      kline_1day = source.get_kline(exchange, symbol, "1day", kline_1min, cache)
+      kline_1week = source.get_kline(exchange, symbol, "1week", kline_1min, cache)
 
       if kline_1day do
         GenServer.call(producer, {:event, %{"ch" => "market.#{symbol}.kline.1day", "tick" => kline_1day}})
@@ -70,8 +69,11 @@ defmodule TrendTracker.Backtest do
       GenServer.call(producer, {:event, %{"ch" => "market.#{symbol}.trade.detail", "tick" => tick}})
     end)
 
+    Logger.info("耗时：#{Float.round((:os.system_time(:microsecond) - start_time) / 1000 / 1000, 6)}秒")
+
     if length(klines_1min) > 1 do
-      push_data(worker, producer, source, exchange, symbol, last_kline_1min["timestamp"] + 60)
+      cache = if length(cache) > 10080, do: Enum.slice(cache, -10080, 10080), else: cache
+      push_data(worker, producer, source, exchange, symbol, last_kline_1min["timestamp"], cache)
     else
       Logger.info("回测完毕")
     end

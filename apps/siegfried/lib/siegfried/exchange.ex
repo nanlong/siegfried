@@ -4,22 +4,22 @@ defmodule Siegfried.Exchange do
   """
 
   import Ecto.Query, warn: false
-  alias Siegfried.Repo
 
+  alias Siegfried.Repo
   alias Siegfried.Exchange.Kline
 
+  alias TrendTracker.Exchange.Huobi.Helper, as: HuobiHelper
 
-  def get_kline(exchange, symbol, period, from) do
-    day_seconds = 60 * 60 * 24
-    week_seconds = day_seconds * 7
-    kline = list_klines(exchange, symbol, period, from - week_seconds, from) |> List.last()
+
+  def get_kline(exchange, symbol, period, kline_1min, cache) do
+    from = kline_1min["timestamp"]
+    kline = list_klines(exchange, symbol, period, from - HuobiHelper.seconds(period), from) |> List.last()
 
     if kline do
-      kline_1min = list_klines(exchange, symbol, "1min", from, from) |> List.first()
-      close = if kline_1min && kline_1min.timestamp < kline.timestamp + day_seconds, do: kline_1min.timestamp, else: kline.close
-      data = list_klines(exchange, symbol, "1min", kline.timestamp, from)
-      low = data |> Enum.map(&(&1.low)) |> Enum.min()
-      high = data |> Enum.map(&(&1.high)) |> Enum.max()
+      data = Enum.filter(cache, fn item -> item["timestamp"] >= kline.timestamp and item["timestamp"] <= from end)
+      %{"low" => low, "high" => high} = List.first(data)
+      {low, high} = Enum.reduce(data, {low, high}, fn item, {low, high} -> {min(item["low"], low), max(item["high"], high)} end)
+      close = if from - HuobiHelper.seconds(period) < kline.timestamp - HuobiHelper.seconds("1min"), do: kline_1min["close"], else: kline.close
       %{kline | close: close, low: low, high: high}
     end
   end
@@ -43,8 +43,25 @@ defmodule Siegfried.Exchange do
       currency = symbol |> String.split("_") |> List.first() |> String.downcase()
       symbol = "#{currency}usdt"
       to = if not is_nil(kline) and kline.timestamp > from, do: kline.timestamp, else: to
+      # 现货的周K线比合约K线少了86400秒，查询条件需要调整
+      {from, to} = if period == "1week", do: {from - HuobiHelper.seconds("1day"), to - HuobiHelper.seconds("1day")}, else: {from, to}
       spot_klines = list_klines(exchange, symbol, period, from, to)
-      Enum.slice(spot_klines, 0..-2) ++ klines
+
+      spot_klines = if period == "1week" do
+        Enum.map(spot_klines, fn kline ->
+          # 修复周K线的时间戳，使之与合约K线一致
+          timestamp = kline.timestamp + HuobiHelper.seconds("1day")
+          %{kline | timestamp: timestamp, datetime: Kline.transform_timestamp(timestamp)}
+        end)
+      else
+        spot_klines
+      end
+
+      if length(klines) > 0 do
+        Enum.slice(spot_klines, 0..-2) ++ klines
+      else
+        spot_klines
+      end
     else
       klines
     end

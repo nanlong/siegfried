@@ -38,6 +38,18 @@ defmodule TrendTracker.Exchange.Huobi.Helper do
     :sha256 |> :crypto.hmac(secret_key, content) |> Base.encode64()
   end
 
+  def seconds(period) do
+    case period do
+      "1min" -> 60
+      "5min" -> 60 * 5
+      "15min" -> 60 * 15
+      "30min" -> 60 * 30
+      "60min" -> 60 * 60
+      "1day" -> 60 * 60 * 24
+      "1week" -> 60 * 60 * 24 * 7
+    end
+  end
+
   # 一张合约价值，单位美元
   def contract_size(symbol) do
     if symbol |> String.downcase() |> String.starts_with?("btc"), do: 100, else: 10

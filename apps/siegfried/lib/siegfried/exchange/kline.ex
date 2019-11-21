@@ -34,7 +34,7 @@ defmodule Siegfried.Exchange.Kline do
     put_change(changeset, :datetime, transform_timestamp(timestamp))
   end
 
-  defp transform_timestamp(timestamp) do
+  def transform_timestamp(timestamp) do
     timestamp
     |> DateTime.from_unix!()
     |> DateTime.to_iso8601()
