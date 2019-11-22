@@ -9,9 +9,17 @@ defmodule Siegfried do
     exchange |> list_klines(symbol, period) |> List.first()
   end
 
+  def last_kline(exchange, symbol, "1min") do
+    kline = Exchange.last_kline(exchange, symbol, "1min")
+    kline_from_siegfried(kline)
+  end
+  def last_kline(exchange, symbol, period) do
+    exchange |> list_klines(symbol, period) |> List.last()
+  end
+
   def get_kline(exchange, symbol, period, from, cache) do
     kline = Exchange.get_kline(exchange, symbol, period, from, cache)
-    if kline, do: %{"id" => kline.timestamp, "open" => kline.open, "close" => kline.close, "low" => kline.low, "high" => kline.high}
+    if kline, do: %{"id" => kline.timestamp, "open" => kline.open, "close" => kline.close, "low" => kline.low, "high" => kline.high, "datetime" => kline.datetime}
   end
 
   def list_klines(exchange, symbol, period, from \\ nil, to \\ nil) do

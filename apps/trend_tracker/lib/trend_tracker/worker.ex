@@ -8,7 +8,7 @@ defmodule TrendTracker.Worker do
     source: Siegfried,
     trend: [module: "Macd", period: "1week"],
     breakout: [module: "BollingerBands", period: "1day"],
-    turtle: [period: "1day"],
+    bankroll: [period: "1day"],
     trader: [],
   ]
 
@@ -19,7 +19,7 @@ defmodule TrendTracker.Worker do
   use DynamicSupervisor
 
   alias TrendTracker.Helper
-  alias TrendTracker.Exchange.Huobi.Account, as: HuobiAccount
+  alias TrendTracker.Exchange.Huobi.Client, as: HuobiClient
   alias TrendTracker.Trend.{Macd, Ema}
   alias TrendTracker.Breakout.{BollingerBands, KeltnerChannel, DonchainChanel}
   alias TrendTracker.Bankroll.Turtle
@@ -39,8 +39,8 @@ defmodule TrendTracker.Worker do
   开始
   """
   def start(pid, opts) do
-    account_name = Helper.system_name("account", Keyword.take(opts, [:title, :exchange, :backtest]))
-    {:ok, _account_pid} = start_child(pid, {HuobiAccount, [name: account_name] ++ Keyword.take(opts, [:balance, :symbols])})
+    client_name = Helper.system_name("client", Keyword.take(opts, [:title, :exchange, :backtest]))
+    {:ok, _client_pid} = start_child(pid, {HuobiClient, [name: client_name] ++ Keyword.take(opts, [:balance, :symbols])})
 
     Enum.each(opts[:symbols], fn symbol ->
       public_opts = Keyword.take(opts, [:title, :exchange, :source, :backtest]) ++ [symbol: symbol]
@@ -53,13 +53,13 @@ defmodule TrendTracker.Worker do
       trend_module = trend_module(opts[:trend][:module])
       breakout_module = breakout_module(opts[:breakout][:module])
 
-      systems = [account: account_name, trend: trend_name, breakout: breakout_name, bankroll: bankroll_name, trader: trader_name]
+      systems = [client: client_name, trend: trend_name, breakout: breakout_name, bankroll: bankroll_name, trader: trader_name]
 
-      trend_opts = [name: trend_name, systems: systems] ++ opts[:trend] ++ public_opts
+      trend_opts = [name: trend_name, systems: systems, klines: opts[:symbols_klines][symbol][:trend]] ++ opts[:trend] ++ public_opts
       {:ok, _trend_pid} = start_child(pid, {trend_module, trend_opts})
-      breakout_opts = [name: breakout_name, systems: systems] ++ opts[:breakout] ++ public_opts
+      breakout_opts = [name: breakout_name, systems: systems, klines: opts[:symbols_klines][symbol][:breakout]] ++ opts[:breakout] ++ public_opts
       {:ok, _breakout_pid} = start_child(pid, {breakout_module, breakout_opts})
-      bankroll_opts = [name: bankroll_name, systems: systems] ++ opts[:turtle] ++ public_opts
+      bankroll_opts = [name: bankroll_name, systems: systems, klines: opts[:symbols_klines][symbol][:bankroll]] ++ opts[:bankroll] ++ public_opts
       {:ok, _bankroll_pid} = start_child(pid, {Turtle, bankroll_opts})
       trader_opts = [name: trader_name, systems: systems] ++ opts[:trader] ++ public_opts
       {:ok, _trader_pid} = start_child(pid, {Trader, trader_opts})

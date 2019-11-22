@@ -19,9 +19,6 @@ defmodule TrendTracker.Bankroll.Turtle do
   """
   use TrendTracker.System
 
-  alias TrendTracker.Bankroll.Position
-  alias TrendTracker.Exchange.Huobi.Helper, as: HuobiHelper
-
   def default do
     [period: 20, power: 0.5, atr_ratio: 0.01, atr_cost: 1]
   end
@@ -62,13 +59,15 @@ defmodule TrendTracker.Bankroll.Turtle do
     case klines(state) do
       [%{"atr" => _} = pre_kline, %{"close" => _} = cur_kline] ->
         contract_size = HuobiHelper.contract_size(state[:symbol])
-        balance = GenServer.call(state[:systems][:account], :balance)
+        balance = GenServer.call(state[:systems][:client], :balance)
         {^symbol, trend} = GenServer.call(state[:systems][:trend], :trend)
         {^symbol, price} = GenServer.call(state[:systems][:breakout], :breakout)
 
+        # 更新整体趋势
+        position = Position.update(position, :trend, trend)
         # 更新开仓价格
         position = Position.update(position, :open_price, price[String.to_atom("#{trend}_open")])
-        # 更新一仓规模
+        # 更新合约张数
         position = Position.update_volume(position, balance, pre_kline["atr"], cur_kline["close"], contract_size)
 
         Logger.debug "Turtpe update position: #{inspect(position)}"
@@ -79,23 +78,23 @@ defmodule TrendTracker.Bankroll.Turtle do
     end
   end
   # 持仓状态下，什么也不做
-  def update_position(state), do: state
+  def update_position(state), do: {:ok, state}
 
   def signal(trade, %{position: %{status: :empty} = position}) do
     {:wait, position.trend, trade}
   end
   def signal(trade, %{position: %{close_price: close_price, open_price: open_price} = position}) when is_float(close_price) and is_float(open_price) do
     cond do
-      position.trend == :long && trade["price"] < close_price ->
+      Position.long?(position) && trade["price"] <= close_price ->
         {:close, position.trend, trade}
 
-      position.trend == :short && trade["price"] > close_price ->
+      Position.short?(position) && trade["price"] >= close_price ->
         {:close, position.trend, trade}
 
-      position.status == :hold && position.trend == :long && trade["price"] > open_price ->
+      Position.hold?(position) && Position.long?(position) && trade["price"] >= open_price ->
         {:open, position.trend, trade}
 
-      position.status == :hold && position.trend == :short && trade["price"] < open_price ->
+      Position.hold?(position) && Position.short?(position) && trade["price"] <= open_price ->
         {:open, position.trend, trade}
 
       true ->
@@ -110,12 +109,12 @@ defmodule TrendTracker.Bankroll.Turtle do
     {:reply, {state[:symbol], state[:position]}, state}
   end
 
-  def handle_call({:open_position, trend, price, volume}, _from, state) do
+  def handle_call({:open, trend, price, volume}, _from, state) do
     position = Position.open(state[:position], trend, price, volume)
     {:reply, {state[:symbol], position}, %{state | position: position}}
   end
 
-  def handle_call(:close_position, _from, state) do
+  def handle_call(:close, _from, state) do
     position = Position.close(state[:position])
     {:reply, {state[:symbol], position}, %{state | position: position}}
   end

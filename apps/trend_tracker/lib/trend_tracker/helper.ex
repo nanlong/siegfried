@@ -1,5 +1,7 @@
 defmodule TrendTracker.Helper do
 
+  require Logger
+
   @doc """
   真实波动幅度
 
@@ -55,6 +57,27 @@ defmodule TrendTracker.Helper do
     |> Timex.parse!("{ISO:Extended}")
     |> Timex.Timezone.convert("Asia/Shanghai")
     |> DateTime.to_string()
+  end
+
+  def to_float(number, decimals \\ nil)
+  def to_float(number, decimals) when is_nil(decimals) do
+    {float, _} = number |> to_string() |> Float.parse()
+    float
+  end
+  def to_float(number, decimals) when is_integer(decimals) do
+    float = to_float(number, nil)
+    Float.floor(float, decimals)
+  end
+
+  def float_to_binary(number, decimals) do
+    number |> to_float(decimals) |> :erlang.float_to_binary(decimals: decimals)
+  end
+
+  def file_log(message) do
+    Logger.info(message)
+    File.open("./backtest.log", [:unicode, :append], fn file ->
+      IO.write(file, "#{message}\n")
+    end)
   end
 
   @doc """

@@ -117,4 +117,24 @@ defmodule TrendTracker.Bankroll.Position do
   def volume(position) do
     position.orders |> Enum.map(&(&1.volume)) |> Enum.sum()
   end
+
+  def empty?(position) do
+    position.status == :empty
+  end
+
+  def hold?(position) do
+    position.status == :hold
+  end
+
+  def full?(position) do
+    position.status == :full
+  end
+
+  def long?(position) do
+    position.trend == :long
+  end
+
+  def short?(position) do
+    position.trend == :short
+  end
 end

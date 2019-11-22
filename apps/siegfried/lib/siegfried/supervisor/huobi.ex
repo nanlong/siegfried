@@ -49,6 +49,6 @@ defmodule Siegfried.HuobiSupervisor do
 
     children = if Application.get_env(:siegfried, :env) in [:dev, :prod], do: children, else: []
 
-    Supervisor.init(children, strategy: :one_for_one)
+    Supervisor.init([], strategy: :one_for_one)
   end
 end

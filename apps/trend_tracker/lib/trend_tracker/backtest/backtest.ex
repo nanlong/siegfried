@@ -5,17 +5,17 @@ defmodule TrendTracker.Backtest do
     title: "test",
     balance: 10000,
     exchange: "huobi",
-    symbols: ["BTC_CQ"],
+    symbols: ["btcusdt"],
     trend: [module: "Macd", period: "1week"],
     breakout: [module: "BollingerBands", period: "1day"],
-    turtle: [period: "1day"],
+    bankroll: [period: "1day"],
     trader: [],
     source: Siegfried,
   ]
 
   TrendTracker.Backtest.start(opts)
   """
-
+  # todo: BTC_CQ 开仓异常
   alias TrendTracker.Helper
   alias TrendTracker.Worker
   alias TrendTracker.Exchange.Producer
@@ -23,7 +23,15 @@ defmodule TrendTracker.Backtest do
   require Logger
 
   def start(opts) do
-    opts = opts ++ [backtest: true]
+    symbols_klines = Map.new(opts[:symbols], fn symbol ->
+      klines = Map.new([:trend, :breakout, :bankroll], fn system ->
+        # 2018-10-01 1538323200
+        {system, opts[:source].list_klines(opts[:exchange], symbol, opts[system][:period], 0, 1538323200)}
+      end)
+      {symbol, klines}
+    end)
+
+    opts = opts ++ [backtest: true, symbols_klines: symbols_klines]
 
     producers = Map.new(opts[:symbols], fn symbol ->
       opts = Keyword.take(opts, [:exchange, :backtest]) ++ [symbol: symbol]
@@ -32,13 +40,16 @@ defmodule TrendTracker.Backtest do
       {symbol, producer_name}
     end)
 
-    {:ok, pid} = Worker.start_link()
-    :ok = Worker.start(pid, Keyword.delete(opts, :source))
+    {:ok, worker_pid} = Worker.start_link()
+    :ok = Worker.start(worker_pid, Keyword.delete(opts, :source))
 
-    Enum.each(opts[:symbols], fn symbol -> Task.async(fn ->
-      kline = opts[:source].first_kline(opts[:exchange], symbol, "1day")
-      push_data(pid, producers[symbol], opts[:source], opts[:exchange], symbol, kline["timestamp"], [])
-    end) end)
+    task = fn symbol -> Task.async(fn ->
+      klines = opts[:symbols_klines][symbol][:breakout]
+      kline = if klines && length(klines) > 0, do: List.last(klines), else: opts[:source].first_kline(opts[:exchange], symbol, "1day")
+      push_data(worker_pid, producers[symbol], opts[:source], opts[:exchange], symbol, kline["timestamp"], [])
+    end) end
+
+    Enum.each(opts[:symbols], fn symbol -> task.(symbol) end)
   end
 
   defp push_data(worker, producer, source, exchange, symbol, from, cache) do
@@ -50,7 +61,7 @@ defmodule TrendTracker.Backtest do
     last_kline_1min = List.last(klines_1min)
 
     if first_kline_1min do
-      Logger.info("#{symbol} #{first_kline_1min["timestamp"]} 数据时间：#{first_kline_1min["datetime"]}")
+      Logger.info("#{symbol} 数据时间：#{String.slice(first_kline_1min["datetime"], 0..24)}")
     end
 
     Enum.each(data, fn kline_1min ->
@@ -65,7 +76,7 @@ defmodule TrendTracker.Backtest do
         GenServer.call(producer, {:event, %{"ch" => "market.#{symbol}.kline.1week", "tick" => kline_1week}})
       end
 
-      tick = %{"data" => [%{"ts" => kline_1min["timestamp"], "price" => kline_1min["close"]}]}
+      tick = %{"data" => [%{"ts" => kline_1min["timestamp"], "datetime" => kline_1min["datetime"], "price" => kline_1min["close"]}]}
       GenServer.call(producer, {:event, %{"ch" => "market.#{symbol}.trade.detail", "tick" => tick}})
     end)
 
@@ -75,7 +86,9 @@ defmodule TrendTracker.Backtest do
       cache = if length(cache) > 10080, do: Enum.slice(cache, -10080, 10080), else: cache
       push_data(worker, producer, source, exchange, symbol, last_kline_1min["timestamp"], cache)
     else
-      Logger.info("回测完毕")
+      kline_1min = source.last_kline(exchange, symbol, "1min")
+      trade = %{"ts" => kline_1min["timestamp"], "datetime" => kline_1min["datetime"], "price" => kline_1min["close"]}
+      GenServer.call(producer, {:event, %{"backtest" => "finished", "trade" => trade}})
     end
   end
 end

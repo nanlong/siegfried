@@ -2,7 +2,9 @@ defmodule TrendTracker.Trader do
   use GenStage
 
   alias TrendTracker.Helper
-  alias TrendTracker.Exchange.Huobi.Account, as: HuobiAccount
+  alias TrendTracker.Exchange.Huobi.Client, as: HuobiClient
+  alias TrendTracker.Backtest.Client, as: BacktestClient
+  alias TrendTracker.Bankroll.Position
 
   require Logger
 
@@ -17,9 +19,10 @@ defmodule TrendTracker.Trader do
   end
 
   def init(state) do
-    {_symbol, trend_period} = GenServer.call(state[:systems][:trend], :period)
-    {_symbol, breakout_period} = GenServer.call(state[:systems][:breakout], :period)
-    {_symbol, bankroll_period} = GenServer.call(state[:systems][:bankroll], :period)
+    symbol = state[:symbol]
+    {^symbol, trend_period} = GenServer.call(state[:systems][:trend], :period)
+    {^symbol, breakout_period} = GenServer.call(state[:systems][:breakout], :period)
+    {^symbol, bankroll_period} = GenServer.call(state[:systems][:bankroll], :period)
 
     state = Map.merge(state, %{trend_period: trend_period, breakout_period: breakout_period, bankroll_period: bankroll_period})
 
@@ -59,6 +62,22 @@ defmodule TrendTracker.Trader do
           _ -> nil
         end
 
+      %{"backtest" => "finished", "trade" => trade} ->
+        if state[:backtest] do
+          Logger.info("#{state[:symbol]} 回测完毕")
+          symbol = state[:symbol]
+          {^symbol, position} = GenServer.call(state[:systems][:bankroll], :position)
+
+          if position.status != :empty do
+            {:ok, order} = BacktestClient.submit_order(nil, :close, position.trend, trade["price"], Position.volume(position), trade["ts"], state)
+            GenServer.call(state[:systems][:bankroll], :close)
+            GenServer.call(state[:systems][:client], {:profit, state[:symbol], order["filled_cash_amount"]})
+          end
+
+          balance = GenServer.call(state[:systems][:client], :balance)
+          Helper.file_log("#{trade["datetime"]} 资金总值：#{Helper.float_to_binary(balance, 8)}")
+        end
+
       _ -> nil
     end)
 
@@ -67,41 +86,44 @@ defmodule TrendTracker.Trader do
 
   # 根据持仓状态，获取系统信号
   defp system_signal(trade, state) do
-    {_symbol, position} = GenServer.call(state[:systems][:bankroll], :position)
-    system = if position.status == :empty, do: state[:systems][:breakout], else: state[:systems][:bankroll]
-    {_symbol, signal} = GenServer.call(system, {:signal, trade})
-    signal
+    symbol = state[:symbol]
+    {^symbol, position} = GenServer.call(state[:systems][:bankroll], :position)
+    {^symbol, breakout_signal} = GenServer.call(state[:systems][:breakout], {:signal, trade})
+    {^symbol, bankroll_signal} = GenServer.call(state[:systems][:bankroll], {:signal, trade})
+
+    cond do
+      # 止盈
+      not Position.empty?(position) && elem(breakout_signal, 0) == :close -> breakout_signal
+      # 止损
+      not Position.empty?(position) && elem(bankroll_signal, 0) == :close -> bankroll_signal
+      # 可能开仓
+      Position.empty?(position) -> breakout_signal
+      # 可能加仓
+      true -> bankroll_signal
+    end
   end
 
   # 根据信号，开仓或者平仓
   defp submit_order({:wait, _, _}, _state), do: nil
   defp submit_order({action, trend, trade}, %{backtest: true} = state) do
-    IO.inspect "backtest submit order: #{inspect({action, trend, trade})}"
-    _account = state[:systems][:account]
+    client_name = state[:systems][:client]
+    symbol = state[:symbol]
+    {^symbol, position} = GenServer.call(state[:systems][:bankroll], :position)
+
+    client = cond do
+      state[:backtest] -> BacktestClient
+      state[:exchange] == "huobi" -> HuobiClient
+    end
 
     case action do
       :open ->
-        nil
+        {:ok, order} = client.submit_order(client_name, action, trend, position.open_price, position.volume, trade["ts"], state)
+        GenServer.call(state[:systems][:bankroll], {:open, trend, order["price"], order["volume"]})
 
       :close ->
-        nil
-
-      _ -> nil
-    end
-  end
-  defp submit_order({action, _trend, _trade}, state) do
-    account = state[:systems][:account]
-
-    case {state[:exchange], action} do
-      {"huobi", :open} ->
-        params = %{}
-        HuobiAccount.open(account, params)
-
-      {"huobi", :close} ->
-        params = %{}
-        HuobiAccount.close(account, params)
-
-      _ -> {:error, nil}
+        {:ok, order} = client.submit_order(client_name, action, trend, position.close_price, Position.volume(position), trade["ts"], state)
+        GenServer.call(state[:systems][:bankroll], :close)
+        GenServer.call(state[:systems][:client], {:profit, state[:symbol], order["filled_cash_amount"]})
     end
   end
 end

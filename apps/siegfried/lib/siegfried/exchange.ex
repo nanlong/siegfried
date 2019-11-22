@@ -10,6 +10,16 @@ defmodule Siegfried.Exchange do
 
   alias TrendTracker.Exchange.Huobi.Helper, as: HuobiHelper
 
+  def last_kline(exchange, symbol, period) do
+    query = from k in Kline,
+      where: k.exchange == ^exchange,
+      where: k.symbol == ^symbol,
+      where: k.period == ^period,
+      order_by: [desc: k.timestamp],
+      limit: 1
+
+    Repo.one(query)
+  end
 
   def get_kline(exchange, symbol, period, kline_1min, cache) do
     from = kline_1min["timestamp"]
@@ -42,7 +52,7 @@ defmodule Siegfried.Exchange do
       kline = List.first(klines)
       currency = symbol |> String.split("_") |> List.first() |> String.downcase()
       symbol = "#{currency}usdt"
-      to = if not is_nil(kline) and kline.timestamp > from, do: kline.timestamp, else: to
+      to = if kline, do: kline.timestamp, else: to
       # 现货的周K线比合约K线少了86400秒，查询条件需要调整
       {from, to} = if period == "1week", do: {from - HuobiHelper.seconds("1day"), to - HuobiHelper.seconds("1day")}, else: {from, to}
       spot_klines = list_klines(exchange, symbol, period, from, to)

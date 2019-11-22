@@ -5,6 +5,8 @@ defmodule TrendTracker.System do
       use GenServer
 
       alias TrendTracker.Helper
+      alias TrendTracker.Exchange.Huobi.Helper, as: HuobiHelper
+      alias TrendTracker.Bankroll.Position
 
       require Logger
 
@@ -171,7 +173,33 @@ defmodule TrendTracker.System do
       @doc """
       信号
       """
-      def signal(_trade, _state), do: raise("需要重写 `signal/2` 函数")
+      def signal(trade, state) do
+        trend = get_trend(state)
+        position = get_position(state)
+
+        case breakout(state) do
+          %{long_open: long_open, long_close: long_close, short_open: short_open, short_close: short_close} ->
+            cond do
+              not Position.empty?(position) && Position.long?(position) && trade["price"] <= long_close ->
+                {:close, position.trend, trade}
+
+              not Position.empty?(position) && Position.short?(position) && trade["price"] >= short_close ->
+                {:close, position.trend, trade}
+
+              Position.empty?(position) && trend == :long && trade["price"] >= long_open ->
+                {:open, trend, trade}
+
+              Position.empty?(position) && trend == :short && trade["price"] <= short_open ->
+                {:open, trend, trade}
+
+              true ->
+                {:wait, trend, trade}
+            end
+
+          _ ->
+            {:wait, trend, trade}
+        end
+      end
 
       # init 初始化勾子回调
       def init_before(state) do
@@ -190,7 +218,7 @@ defmodule TrendTracker.System do
       def kline_before(state), do: state
       def kline_after(state), do: state
 
-      def breakout(_state), do: nil
+      def breakout(_state), do: raise("需要重写 `breakout/1` 函数")
 
       defoverridable default: 0, indicators: 1, klines: 1, signal: 2, init_before: 1, init_after: 1, kline_before: 1, kline_after: 1, breakout: 1
     end

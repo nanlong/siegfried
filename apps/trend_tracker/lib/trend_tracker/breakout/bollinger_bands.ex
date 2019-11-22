@@ -62,32 +62,4 @@ defmodule TrendTracker.Breakout.BollingerBands do
       _ -> nil
     end
   end
-
-  def signal(trade, state) do
-    trend = get_trend(state)
-    position = get_position(state)
-
-    case breakout(state) do
-      %{long_open: long_open, long_close: long_close, short_open: short_open, short_close: short_close} ->
-        cond do
-          position.status == :filled && position.trend == :long && trade["price"] <= long_close ->
-            {:close, position.trend, trade}
-
-          position.status == :filled && position.trend == :short && trade["price"] >= short_close ->
-            {:close, position.trend, trade}
-
-          position.status == :empty && trend == :long && trade["price"] >= long_open ->
-            {:open, trend, trade}
-
-          position.status == :empty && trend == :short && trade["price"] <= short_open ->
-            {:open, trend, trade}
-
-          true ->
-            {:wait, trend, trade}
-        end
-
-      _ ->
-        {:wait, trend, trade}
-    end
-  end
 end
