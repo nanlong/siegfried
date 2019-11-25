@@ -12,8 +12,8 @@ defmodule TrendTracker.Exchange.Huobi.WebSocket do
 
   ## Examples
 
-    iex> url = "wss://api.btcgateway.pro/notification"
-    iex> {:ok, pid} = HuobiWebSocket.start_link(url, debug: [:trace])
+    iex> url = "wss://api.huobi.io/ws"
+    iex> {:ok, pid} = HuobiWebSocket.start_link(url: url, debug: [:trace])
 
   """
 
