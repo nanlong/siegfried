@@ -21,7 +21,7 @@ defmodule TrendTracker.Exchange.Huobi.History do
 
   def start_link(market, symbol, period, opts \\ []) do
     ws = @huobi[String.to_atom("#{market}_ws")]
-    {:ok, websocket} = HuobiWebSocket.start_link(url: ws, debug: [:trace])
+    {:ok, websocket} = HuobiWebSocket.start_link(url: ws)
     state = %{websocket: websocket, market: market, symbol: symbol, period: period, start: opts[:start]}
     GenServer.start_link(__MODULE__, state, opts)
   end

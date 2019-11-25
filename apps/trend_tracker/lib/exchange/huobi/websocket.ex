@@ -12,7 +12,7 @@ defmodule TrendTracker.Exchange.Huobi.WebSocket do
 
   ## Examples
 
-    iex> url = "wss://api.huobi.io/ws"
+    iex> url = "wss://api.huobi.de.com/ws"
     iex> {:ok, pid} = HuobiWebSocket.start_link(url: url, debug: [:trace])
 
   """

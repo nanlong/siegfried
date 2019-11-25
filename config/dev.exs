@@ -82,10 +82,10 @@ config :phoenix, :stacktrace_depth, 20
 
 # Huobi config
 config :trend_tracker, :huobi,
-  spot_api: "https://api.huobi.vn",
-  contract_api: "https://api.hbdm.vn",
-  spot_ws: "wss://api.huobi.io/ws",
-  spot_auth_ws: "wss://api.huobi.vn/ws/v1",
+  spot_api: "https://api.huobi.de.com",
+  contract_api: "https://api.hbdm.io",
+  spot_ws: "wss://api.huobi.de.com/ws",
+  spot_auth_ws: "wss://api.huobi.de.com/ws/v1",
   contract_ws: "wss://dm.huobi.io/ws",
   contract_auth_ws: "wss://api.btcgateway.pro/notification",
   contract_symbols: ["BTC_CQ"]
