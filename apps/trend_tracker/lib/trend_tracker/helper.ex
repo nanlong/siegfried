@@ -73,9 +73,9 @@ defmodule TrendTracker.Helper do
     number |> to_float(decimals) |> :erlang.float_to_binary(decimals: decimals)
   end
 
-  def file_log(message) do
+  def file_log(filename, message) do
     Logger.info(message)
-    File.open("./backtest.log", [:unicode, :append], fn file ->
+    File.open("./#{filename}.log", [:unicode, :append], fn file ->
       IO.write(file, "#{message}\n")
     end)
   end

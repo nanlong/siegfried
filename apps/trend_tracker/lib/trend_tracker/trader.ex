@@ -69,13 +69,13 @@ defmodule TrendTracker.Trader do
           {^symbol, position} = GenServer.call(state[:systems][:bankroll], :position)
 
           if position.status != :empty do
-            {:ok, order} = BacktestClient.submit_order(nil, :close, position.trend, trade, Position.volume(position), state)
+            {:ok, order} = BacktestClient.submit_order(nil, {:breakout, {:close, position.trend, trade}}, Position.volume(position), state)
             GenServer.call(state[:systems][:bankroll], :close)
             GenServer.call(state[:systems][:client], {:profit, state[:symbol], order["filled_cash_amount"]})
           end
 
           balance = GenServer.call(state[:systems][:client], :balance)
-          Helper.file_log("#{trade["datetime"]} 资金总值：#{Helper.float_to_binary(balance, 8)}")
+          Helper.file_log("backtest", "#{trade["datetime"]} 资金总值：#{Helper.float_to_binary(balance, 8)}")
         end
 
       _ -> nil
@@ -93,19 +93,19 @@ defmodule TrendTracker.Trader do
 
     cond do
       # 止盈
-      not Position.empty?(position) && elem(breakout_signal, 0) == :close -> breakout_signal
+      not Position.empty?(position) && elem(breakout_signal, 0) == :close -> {:breakout, breakout_signal}
       # 止损
-      not Position.empty?(position) && elem(bankroll_signal, 0) == :close -> bankroll_signal
+      not Position.empty?(position) && elem(bankroll_signal, 0) == :close -> {:bankroll, bankroll_signal}
       # 可能开仓
-      Position.empty?(position) -> breakout_signal
+      Position.empty?(position) -> {:breakout, breakout_signal}
       # 可能加仓
-      true -> bankroll_signal
+      true -> {:bankroll, bankroll_signal}
     end
   end
 
   # 根据信号，开仓或者平仓
-  defp submit_order({:wait, _, _}, _state), do: nil
-  defp submit_order({action, trend, trade}, %{backtest: true} = state) do
+  defp submit_order({_system, {:wait, _, _}}, _state), do: nil
+  defp submit_order({_, {action, trend, _}} = signal, %{backtest: true} = state) do
     client_name = state[:systems][:client]
     symbol = state[:symbol]
     {^symbol, position} = GenServer.call(state[:systems][:bankroll], :position)
@@ -117,11 +117,11 @@ defmodule TrendTracker.Trader do
 
     case action do
       :open ->
-        {:ok, order} = client.submit_order(client_name, action, trend, trade, position.volume, state)
+        {:ok, order} = client.submit_order(client_name, signal, position.volume, state)
         GenServer.call(state[:systems][:bankroll], {:open, trend, order["price"], order["volume"]})
 
       :close ->
-        {:ok, order} = client.submit_order(client_name, action, trend, trade, Position.volume(position), state)
+        {:ok, order} = client.submit_order(client_name, signal, Position.volume(position), state)
         GenServer.call(state[:systems][:bankroll], :close)
         GenServer.call(state[:systems][:client], {:profit, state[:symbol], order["filled_cash_amount"]})
     end

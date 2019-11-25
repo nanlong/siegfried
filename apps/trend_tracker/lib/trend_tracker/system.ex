@@ -181,15 +181,19 @@ defmodule TrendTracker.System do
           %{long_open: long_open, long_close: long_close, short_open: short_open, short_close: short_close} ->
             cond do
               not Position.empty?(position) && Position.long?(position) && trade["price"] <= long_close ->
+                Logger.warn("平多止盈, #{trade["price"]} <= #{long_close}")
                 {:close, position.trend, trade}
 
               not Position.empty?(position) && Position.short?(position) && trade["price"] >= short_close ->
+                Logger.warn("平空止盈, #{trade["price"]} >= #{short_close}")
                 {:close, position.trend, trade}
 
               Position.empty?(position) && trend == :long && trade["price"] >= long_open ->
+                Logger.warn("开仓做多, #{trade["price"]} >= #{long_open}")
                 {:open, trend, trade}
 
               Position.empty?(position) && trend == :short && trade["price"] <= short_open ->
+                Logger.warn("开仓做空, #{trade["price"]} <= #{short_open}")
                 {:open, trend, trade}
 
               true ->

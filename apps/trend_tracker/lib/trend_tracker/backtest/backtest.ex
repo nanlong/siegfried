@@ -3,9 +3,9 @@ defmodule TrendTracker.Backtest do
 
   opts = [
     title: "test",
-    balance: 10000,
+    balance: 1500,
     exchange: "huobi",
-    symbols: ["btcusdt"],
+    symbols: ["btcusdt", "ethusdt", "eosusdt", "bchusdt"],
     trend: [module: "Macd", period: "1week"],
     breakout: [module: "BollingerBands", period: "1day"],
     bankroll: [period: "1day"],
@@ -15,7 +15,7 @@ defmodule TrendTracker.Backtest do
 
   TrendTracker.Backtest.start(opts)
   """
-  # todo: BTC_CQ 开仓异常
+
   alias TrendTracker.Helper
   alias TrendTracker.Worker
   alias TrendTracker.Exchange.Producer
@@ -59,9 +59,10 @@ defmodule TrendTracker.Backtest do
     cache = cache ++ data
     first_kline_1min = List.first(klines_1min)
     last_kline_1min = List.last(klines_1min)
+    datetime = String.slice(first_kline_1min["datetime"], 0..9)
 
     if first_kline_1min do
-      Logger.info("#{symbol} 数据时间：#{String.slice(first_kline_1min["datetime"], 0..24)}")
+      Logger.info("#{symbol} 数据时间：#{datetime}")
     end
 
     Enum.each(data, fn kline_1min ->
@@ -80,7 +81,7 @@ defmodule TrendTracker.Backtest do
       GenServer.call(producer, {:event, %{"ch" => "market.#{symbol}.trade.detail", "tick" => tick}})
     end)
 
-    Logger.info("耗时：#{Float.round((:os.system_time(:microsecond) - start_time) / 1000 / 1000, 6)}秒")
+    Logger.info("#{symbol} #{datetime} 耗时：#{Float.round((:os.system_time(:microsecond) - start_time) / 1000 / 1000, 6)}秒")
 
     if length(klines_1min) > 1 do
       cache = if length(cache) > 10080, do: Enum.slice(cache, -10080, 10080), else: cache

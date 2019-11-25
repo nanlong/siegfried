@@ -86,15 +86,19 @@ defmodule TrendTracker.Bankroll.Turtle do
   def signal(trade, %{position: %{close_price: close_price, open_price: open_price} = position}) when is_float(close_price) and is_float(open_price) do
     cond do
       Position.long?(position) && trade["price"] <= close_price ->
+        Logger.warn("平多止损, #{trade["price"]} <= #{close_price}")
         {:close, position.trend, trade}
 
       Position.short?(position) && trade["price"] >= close_price ->
+        Logger.warn("平空止损, #{trade["price"]} >= #{close_price}")
         {:close, position.trend, trade}
 
       Position.hold?(position) && Position.long?(position) && trade["price"] >= open_price ->
+        Logger.warn("加仓做多, #{trade["price"]} >= #{open_price}")
         {:open, position.trend, trade}
 
       Position.hold?(position) && Position.short?(position) && trade["price"] <= open_price ->
+        Logger.warn("加仓做空, #{trade["price"]} <= #{open_price}")
         {:open, position.trend, trade}
 
       true ->
