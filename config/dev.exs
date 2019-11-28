@@ -93,4 +93,5 @@ config :trend_tracker, :huobi,
 # Okex config
 config :trend_tracker, :okex,
   api: "https://www.okex.com",
-  ws: "wss://real.okex.com:8443/ws/v3"
+  ws: "wss://real.okex.com:8443/ws/v3",
+  contract_symbols: ["BTC-USD-SWAP"]

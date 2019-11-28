@@ -80,6 +80,11 @@ defmodule TrendTracker.Helper do
     Float.floor(float, decimals)
   end
 
+  def to_int(number) do
+    {int, _} = number |> to_string() |> Integer.parse()
+    int
+  end
+
   def float_to_binary(number, decimals) do
     number |> to_float(decimals) |> :erlang.float_to_binary(decimals: decimals)
   end

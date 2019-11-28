@@ -9,6 +9,7 @@ defmodule Siegfried.Application do
     children = [
       Siegfried.Repo,
       Siegfried.HuobiSupervisor,
+      Siegfried.OkexSupervisor,
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Siegfried.Supervisor)

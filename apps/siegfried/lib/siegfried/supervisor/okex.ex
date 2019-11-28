@@ -1,21 +1,21 @@
-defmodule Siegfried.HuobiSupervisor do
+defmodule Siegfried.OkexSupervisor do
   use Supervisor
 
   alias Siegfried.Exchange
   alias TrendTracker.Helper, as: TrendTrackerHelper
   alias TrendTracker.Exchange.Helper, as: ExchangeHelper
-  alias TrendTracker.Exchange.Huobi.WebSocket, as: HuobiWebSocket
+  alias TrendTracker.Exchange.Okex.WebSocket, as: OkexWebSocket
   alias TrendTracker.Exchange.Producer
   alias TrendTracker.Exchange.Consumer
 
-  @config Application.fetch_env!(:trend_tracker, :huobi)
+  @config Application.fetch_env!(:trend_tracker, :okex)
 
   def start_link(_opts \\ []) do
     Supervisor.start_link(__MODULE__, :ok)
   end
 
   def init(:ok) do
-    exchange = "huobi"
+    exchange = "okex"
 
     children = Enum.map(@config[:contract_symbols], fn symbol ->
       producer = TrendTrackerHelper.system_name("producer", exchange: exchange, symbol: symbol)
@@ -31,17 +31,21 @@ defmodule Siegfried.HuobiSupervisor do
 
           _ -> nil
         end]}, id: consumer),
-        Supervisor.child_spec({HuobiWebSocket, [name: websocket, url: @config[:contract_ws], on_connect: fn pid ->
-          trade_topic = "market.#{symbol}.trade.detail"
-          kline_topics = ["market.#{symbol}.kline.1min", "market.#{symbol}.kline.1day", "market.#{symbol}.kline.1week"]
+        Supervisor.child_spec({OkexWebSocket, [name: websocket, url: @config[:ws], on_connect: fn pid ->
+          trade_topic = "swap/trade:#{symbol}"
+          kline_topics = ["swap/candle60s:#{symbol}", "swap/candle86400s:#{symbol}", "swap/candle604800s:#{symbol}"]
 
-          HuobiWebSocket.on_message(pid, trade_topic, fn response ->
-            trade = List.last(response["tick"]["data"])
+          Process.sleep(100)
+
+          OkexWebSocket.on_message(pid, trade_topic, fn response ->
+            trade = List.last(response["data"])
 
             if trade do
-              timestamp = TrendTrackerHelper.to_int(trade["ts"] / 1000)
+              price = TrendTrackerHelper.to_float(trade["price"])
+              volume = TrendTrackerHelper.to_int(trade["size"])
+              timestamp = ExchangeHelper.datetime_to_timestamp(trade["timestamp"])
               datetime = ExchangeHelper.timestamp_to_local(timestamp)
-              data = %{"price" => trade["price"], "volume" => trade["amount"], "timestamp" => timestamp, "datetime" => datetime}
+              data = %{"price" => price, "volume" => volume, "timestamp" => timestamp, "datetime" => datetime}
               item = %{"exchange" => exchange, "symbol" => symbol, "topic" => "trade", "data" => data}
               GenServer.call(producer, {:event, item})
             end
@@ -49,29 +53,26 @@ defmodule Siegfried.HuobiSupervisor do
 
           Enum.each(kline_topics, fn kline_topic ->
             period = cond do
-              String.ends_with?(kline_topic, "1min") -> "1min"
-              String.ends_with?(kline_topic, "1day") -> "1day"
-              String.ends_with?(kline_topic, "1week") -> "1week"
+              String.starts_with?(kline_topic, "swap/candle60s") -> "1min"
+              String.starts_with?(kline_topic, "swap/candle86400s") -> "1day"
+              String.starts_with?(kline_topic, "swap/candle604800s") -> "1week"
             end
 
-            HuobiWebSocket.on_message(pid, kline_topic, fn response ->
-              kline = response["tick"]
+            OkexWebSocket.on_message(pid, kline_topic, fn response ->
+              keys = ~w(datetime open high low close volume currency_volume)
 
-              if kline && is_map(kline) do
-                timestamp = kline["id"]
+              Enum.each(response["data"], fn kline ->
+                data = Map.new(Enum.zip(keys, kline["candle"]))
+                timestamp = ExchangeHelper.datetime_to_timestamp(data["datetime"])
                 datetime = ExchangeHelper.timestamp_to_local(timestamp)
-                data = Map.take(kline, ~w(open close low high))
                 data = Map.merge(data, %{"timestamp" => timestamp, "datetime" => datetime})
                 item = %{"exchange" => exchange, "symbol" => symbol, "topic" => "kline", "period" => period, "data" => data}
                 GenServer.call(producer, {:event, item})
-              end
+              end)
             end)
           end)
 
-          Enum.each([trade_topic] ++ kline_topics, fn topic ->
-            Process.sleep(100)
-            HuobiWebSocket.push(pid, %{sub: topic})
-          end)
+          OkexWebSocket.push(pid, %{op: "subscribe", args: [trade_topic] ++ kline_topics})
         end]}, id: websocket)
       ]
     end)

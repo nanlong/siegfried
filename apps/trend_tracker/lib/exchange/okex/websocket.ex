@@ -142,8 +142,6 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
       {:error, error} -> error.data
     end
 
-    IO.inspect msg
-
     trigger_callback(msg, state)
 
     # 更新订阅频道收到消息的时间

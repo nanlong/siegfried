@@ -23,4 +23,26 @@ defmodule TrendTracker.Exchange.Helper do
       "1week" -> 60 * 60 * 24 * 7
     end
   end
+
+  def datetime_to_timestamp(datetime) do
+    datetime
+    |> NaiveDateTime.from_iso8601!()
+    |> DateTime.from_naive!("Etc/UTC")
+    |> DateTime.to_unix()
+  end
+
+  def timestamp_to_datetime(timestamp) do
+    timestamp
+    |> DateTime.from_unix!()
+    |> DateTime.to_iso8601()
+  end
+
+  def timestamp_to_local(timestamp) do
+    timestamp
+    |> DateTime.from_unix!()
+    |> DateTime.to_iso8601()
+    |> Timex.parse!("{ISO:Extended}")
+    |> Timex.Timezone.convert("Asia/Shanghai")
+    |> DateTime.to_string()
+  end
 end
