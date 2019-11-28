@@ -24,6 +24,11 @@ defmodule TrendTracker.Exchange.Helper do
     end
   end
 
+  def kline(exchange, symbol, period, kline) do
+    data = %{"exchange" => exchange, "symbol" => symbol, "period" => period, "updated_at" => NaiveDateTime.utc_now()}
+    Map.merge(kline["data"], data)
+  end
+
   def datetime_to_timestamp(datetime) do
     datetime
     |> NaiveDateTime.from_iso8601!()

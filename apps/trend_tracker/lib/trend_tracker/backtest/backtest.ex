@@ -70,15 +70,17 @@ defmodule TrendTracker.Backtest do
       kline_1week = source.get_kline(exchange, symbol, "1week", kline_1min, cache)
 
       if kline_1day do
-        GenServer.call(producer, {:event, %{"ch" => "market.#{symbol}.kline.1day", "tick" => kline_1day}})
+        kline = %{"exchange" => exchange, "symbol" => symbol, "topic" => "kline", "period" => "1day", "data" => kline_1day}
+        GenServer.call(producer, {:event, kline})
       end
 
       if kline_1week do
-        GenServer.call(producer, {:event, %{"ch" => "market.#{symbol}.kline.1week", "tick" => kline_1week}})
+        kline = %{"exchange" => exchange, "symbol" => symbol, "topic" => "kline", "period" => "1week", "data" => kline_1week}
+        GenServer.call(producer, {:event, kline})
       end
 
-      tick = %{"data" => [%{"ts" => kline_1min["timestamp"], "datetime" => kline_1min["datetime"], "price" => kline_1min["close"]}]}
-      GenServer.call(producer, {:event, %{"ch" => "market.#{symbol}.trade.detail", "tick" => tick}})
+      trade = %{"exchange" => exchange, "symbol" => symbol, "topic" => "trade", "data" => %{"datetime" => kline_1min["datetime"], "price" => kline_1min["close"]}}
+      GenServer.call(producer, {:event, trade})
     end)
 
     Logger.info("#{symbol} #{datetime} 耗时：#{Float.round((:os.system_time(:microsecond) - start_time) / 1000 / 1000, 6)}秒")
@@ -88,8 +90,8 @@ defmodule TrendTracker.Backtest do
       push_data(worker, producer, source, exchange, symbol, last_kline_1min["timestamp"], cache)
     else
       kline_1min = source.last_kline(exchange, symbol, "1min")
-      trade = %{"ts" => kline_1min["timestamp"], "datetime" => kline_1min["datetime"], "price" => kline_1min["close"]}
-      GenServer.call(producer, {:event, %{"backtest" => "finished", "trade" => trade}})
+      trade = %{"exchange" => exchange, "symbol" => symbol, "topic" => "trade", "data" => %{"datetime" => kline_1min["datetime"], "price" => kline_1min["close"]}}
+      GenServer.call(producer, {:event, trade})
     end
   end
 end

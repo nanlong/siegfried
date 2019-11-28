@@ -78,7 +78,7 @@ defmodule Siegfried.OkexSupervisor do
     end)
     |> List.flatten()
 
-    children = if Application.get_env(:siegfried, :env) in [:dev, :prod], do: children, else: []
+    children = if Application.get_env(:siegfried, :env) in [:prod], do: children, else: []
 
     Supervisor.init(children, strategy: :one_for_one)
   end

@@ -34,10 +34,10 @@ defmodule TrendTracker.System do
       @doc """
       压入K线，系统更新
       """
-      def handle_cast({:kline, data}, state) do
-        Logger.debug "System accept kline data: #{inspect(data)}"
+      def handle_cast({:kline, kline}, state) do
+        Logger.debug "System accept kline data: #{inspect(kline)}"
         state = kline_before(state)
-        new_kline = TrendTracker.Exchange.Huobi.kline(state[:exchange], state[:symbol], state[:period], data)
+        new_kline = ExchangeHelper.kline(state[:exchange], state[:symbol], state[:period], kline)
         last_kline = List.last(state[:klines])
         klines = if last_kline["timestamp"] == new_kline["timestamp"], do: Enum.slice(state[:klines], 0..-2), else: state[:klines]
 

@@ -34,32 +34,27 @@ defmodule TrendTracker.Trader do
 
   def handle_events(events, _from, state) do
     Enum.each(events, fn
-      %{"ch" => topic, "tick" => data} ->
-        case String.split(topic, ".") do
-          ["market", symbol, "kline", period] ->
-            systems = [
-              {:trend, state[:trend_period]},
-              {:breakout, state[:breakout_period]},
-              {:bankroll, state[:bankroll_period]}
-            ]
+      %{"topic" => "kline"} = data ->
+        systems = [
+          {:trend, state[:trend_period]},
+          {:breakout, state[:breakout_period]},
+          {:bankroll, state[:bankroll_period]}
+        ]
 
-            Enum.each(systems, fn {system, system_period} ->
-              if symbol == state[:symbol] && period == system_period do
-                Logger.debug "Trader push kline: #{system} #{symbol} #{period}"
-                GenServer.cast(state[:systems][system], {:kline, data})
-              end
-            end)
+        Enum.each(systems, fn {system, system_period} ->
+          if data["symbol"] == state[:symbol] && data["period"] == system_period do
+            Logger.debug "Trader push kline: #{system} #{data["symbol"]} #{data["period"]}"
+            GenServer.cast(state[:systems][system], {:kline, data})
+          end
+        end)
 
-          ["market", symbol, "trade", "detail"] ->
-            trade = List.last(data["data"])
+      %{"topic" => "trade"} = data ->
+        trade = data["data"]
 
-            if symbol == state[:symbol] && trade do
-              signal = system_signal(trade, state)
-              Logger.debug "Trader signal: #{inspect(signal)}"
-              submit_order(signal, state)
-            end
-
-          _ -> nil
+        if data["symbol"] == state[:symbol] && trade do
+          signal = system_signal(trade, state)
+          Logger.debug "Trader signal: #{inspect(signal)}"
+          submit_order(signal, state)
         end
 
       %{"backtest" => "finished", "trade" => trade} ->
