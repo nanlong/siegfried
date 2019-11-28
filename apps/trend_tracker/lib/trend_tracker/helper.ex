@@ -50,6 +50,10 @@ defmodule TrendTracker.Helper do
     |> String.to_atom()
   end
 
+  def ts(unit \\ :millisecond) do
+    :os.system_time(unit)
+  end
+
   def transform_timestamp(timestamp) do
     timestamp
     |> DateTime.from_unix!()
@@ -57,6 +61,13 @@ defmodule TrendTracker.Helper do
     |> Timex.parse!("{ISO:Extended}")
     |> Timex.Timezone.convert("Asia/Shanghai")
     |> DateTime.to_string()
+  end
+
+  def transform_datetime(datetime, unit \\ :millisecond) do
+    datetime
+    |> NaiveDateTime.from_iso8601!()
+    |> DateTime.from_naive!("Etc/UTC")
+    |> DateTime.to_unix(unit)
   end
 
   def to_float(number, decimals \\ nil)

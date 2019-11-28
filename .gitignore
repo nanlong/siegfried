@@ -22,3 +22,5 @@ erl_crash.dump
 # Log file
 /log/
 *.log
+
+/.vscode/

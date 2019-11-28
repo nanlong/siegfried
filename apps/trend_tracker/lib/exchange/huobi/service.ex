@@ -14,7 +14,7 @@ defmodule TrendTracker.Exchange.Huobi.Service do
 
   require Logger
 
-  @recv_timeout 10000
+  @recv_timeout 10_000
 
   def start_link(url, opts \\ []) do
     state = %{url: url, access_key: opts[:access_key], secret_key: opts[:secret_key]}

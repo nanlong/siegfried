@@ -34,8 +34,8 @@ defmodule TrendTracker.Exchange.Huobi.Helper do
   def signature(url, method, params, secret_key) do
     uri = URI.parse(url)
     params = params |> Enum.sort() |> Enum.map(fn {k, v} -> "#{k}=#{URI.encode_www_form(v)}" end) |> Enum.join("&")
-    content = "#{String.upcase(method)}\n#{uri.host}\n#{uri.path}\n#{params}"
-    :sha256 |> :crypto.hmac(secret_key, content) |> Base.encode64()
+    message = "#{String.upcase(method)}\n#{uri.host}\n#{uri.path}\n#{params}"
+    :sha256 |> :crypto.hmac(secret_key, message) |> Base.encode64()
   end
 
   def seconds(period) do
