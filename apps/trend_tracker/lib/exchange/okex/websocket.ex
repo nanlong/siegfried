@@ -4,7 +4,7 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
   ## Examples
 
     iex> url = "wss://real.okex.com:8443/ws/v3"
-    iex> {:ok, pid} = OkexWebSocket.start_link(url: url)
+    iex> {:ok, pid} = OkexWebSocket.start_link(url: url, passphrase: "passphrase", access_key: "access_key", secret_key_key: "secret_key_key")
 
     iex> OkexWebSocket.push(pid, "ping", fn msg -> Process.send_after(self(), :ping, 5000) end)
     iex> OkexWebSocket.push(pid, %{op: "subscribe", args: ["swap/candle60s:BTC-USD-SWAP", "swap/candle60s:EOS-USD-SWAP"]}, fn msg -> IO.inspect(msg) end)
@@ -18,31 +18,12 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
 
   @timeout 60_000
 
-  # def test() do
-  #   alias TrendTracker.Exchange.Okex.WebSocket, as: OkexWebSocket
-  #   url = "wss://real.okex.com:8443/ws/v3"
-    # api_key = "5015911e-169f-41a3-8d57-cbf1daf01d53"
-    # secret = "E8D67A0018DB8BE67B68D181CCF969EA"
-    # passphrase = "siegfried"
-    # {:ok, pid} = OkexWebSocket.start_link(url: url, api_key: api_key, secret: secret, passphrase: passphrase, debug: [:trace])
-
-  #   OkexWebSocket.push(pid, %{op: "subscribe", args: ["swap/account:BTC-USD-SWAP"]}, fn msg ->
-  #     IO.inspect "订阅成功"
-  #     IO.inspect msg
-  #   end)
-
-  #   OkexWebSocket.on_message(pid, "swap/account:BTC-USD-SWAP", fn msg ->
-  #     IO.inspect "接受到新消息"
-  #     IO.inspect msg
-  #   end)
-  # end
-
   def start_link(opts \\ []) do
     state = %{
       url: opts[:url],
-      api_key: opts[:api_key],
-      secret: opts[:secret],
       passphrase: opts[:passphrase],
+      access_key: opts[:access_key],
+      secret_key_key: opts[:secret_key_key],
       catch_binary: opts[:catch_binary],
       on_connect: opts[:on_connect],
       bindings: [],
@@ -65,11 +46,11 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
       end
     end
 
-    if state[:api_key] && state[:secret] && state[:passphrase] do
+    if state[:access_key] && state[:secret_key] && state[:passphrase] do
       timestamp = ts(:second)
-      sign = signature(timestamp, "get", "/users/self/verify", nil, state[:secret])
+      sign = signature(timestamp, "get", "/users/self/verify", nil, state[:secret_key])
 
-      WebSockex.cast(self(), {:push, %{op: "login", args: [state[:api_key], state[:passphrase], timestamp, sign]}, fn msg ->
+      WebSockex.cast(self(), {:push, %{op: "login", args: [state[:access_key], state[:passphrase], timestamp, sign]}, fn msg ->
         if msg["success"], do: on_connect.(), else: Logger.error("Okex websocket 登录失败")
       end})
     else

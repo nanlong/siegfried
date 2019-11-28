@@ -89,3 +89,8 @@ config :trend_tracker, :huobi,
   contract_ws: "wss://dm.huobi.io/ws",
   contract_auth_ws: "wss://api.btcgateway.pro/notification",
   contract_symbols: ["BTC_CQ"]
+
+# Okex config
+config :trend_tracker, :okex,
+  api: "https://www.okex.com",
+  ws: "wss://real.okex.com:8443/ws/v3"

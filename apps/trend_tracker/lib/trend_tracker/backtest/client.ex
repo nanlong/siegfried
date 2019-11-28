@@ -1,7 +1,7 @@
 defmodule TrendTracker.Backtest.Client do
 
   import TrendTracker.Helper, only: [file_log: 2, to_float: 2, float_to_binary: 2]
-  import TrendTracker.Exchange.Huobi.Helper, only: [contract_size: 1, futures_profit: 5, ]
+  import TrendTracker.Exchange.Helper, only: [contract_size: 1, futures_profit: 5]
 
   def submit_order(_client_name, {from, {:open, trend, trade}}, volume, state) do
     file_log("backtest", "#{String.slice(trade["datetime"], 0..24)} #{state[:symbol]} #{direction(from, :open, trend)}，价格：#{format(trade["price"], 8)}，合约张数：#{format(volume)}")

@@ -8,3 +8,4 @@ alias TrendTracker.Exchange.Huobi.History, as: HuobiHistory
 
 alias TrendTracker.Exchange.Okex.Service, as: OkexService
 alias TrendTracker.Exchange.Okex.WebSocket, as: OkexWebSocket
+alias TrendTracker.Exchange.Okex.History, as: OkexHistory

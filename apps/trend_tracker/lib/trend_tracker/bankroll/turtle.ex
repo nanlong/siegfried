@@ -58,7 +58,7 @@ defmodule TrendTracker.Bankroll.Turtle do
 
     case klines(state) do
       [%{"atr" => _} = pre_kline, %{"close" => _} = cur_kline] ->
-        contract_size = HuobiHelper.contract_size(state[:symbol])
+        contract_size = ExchangeHelper.contract_size(state[:symbol])
         balance = GenServer.call(state[:systems][:client], :balance)
         {^symbol, trend} = GenServer.call(state[:systems][:trend], :trend)
         {^symbol, price} = GenServer.call(state[:systems][:breakout], :breakout)

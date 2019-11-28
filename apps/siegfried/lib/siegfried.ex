@@ -2,6 +2,7 @@ defmodule Siegfried do
   alias Siegfried.Exchange
   alias Siegfried.Exchange.Kline
   alias TrendTracker.Exchange.Huobi.History, as: HuobiHistory
+  alias TrendTracker.Exchange.Okex.History, as: OkexHistory
 
   defdelegate transform_timestamp(timestamp), to: Kline
 
@@ -42,5 +43,24 @@ defmodule Siegfried do
     end)
 
     HuobiHistory.start(pid)
+  end
+
+  @moduledoc """
+
+  ## Examples
+
+    iex> Siegfried.okex_history(:spot, "btc-usdt", "1week")
+    iex> Siegfried.okex_history(:swap, "btc-usd-swap", "1week")
+
+  """
+  def okex_history(market, symbol, period) do
+    {:ok, pid} = OkexHistory.start_link(market, symbol, period)
+
+    OkexHistory.on_message(pid, fn message ->
+      attrs = Exchange.kline_from_okex(symbol, period, message)
+      Exchange.create_kline(attrs)
+    end)
+
+    OkexHistory.start(pid)
   end
 end

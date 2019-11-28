@@ -12,7 +12,7 @@ defmodule TrendTracker.Exchange.Huobi.History do
 
   use GenServer
 
-  alias TrendTracker.Exchange.Huobi.Helper, as: HuobiHelper
+  alias TrendTracker.Exchange.Helper, as: ExchangeHelper
   alias TrendTracker.Exchange.Huobi.WebSocket, as: HuobiWebSocket
 
   require Logger
@@ -83,7 +83,7 @@ defmodule TrendTracker.Exchange.Huobi.History do
   end
 
   defp timerange(timestamp, state) do
-    seconds = HuobiHelper.seconds(state[:period])
+    seconds = ExchangeHelper.seconds(state[:period])
     count = if state[:market] == :contract, do: 2000, else: 300
     {timestamp - count * seconds, timestamp - seconds}
   end

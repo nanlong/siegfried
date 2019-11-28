@@ -8,7 +8,7 @@ defmodule Siegfried.Exchange do
   alias Siegfried.Repo
   alias Siegfried.Exchange.Kline
 
-  alias TrendTracker.Exchange.Huobi.Helper, as: HuobiHelper
+  alias TrendTracker.Exchange.Helper, as: ExchangeHelper
 
   def last_kline(exchange, symbol, period) do
     query = from k in Kline,
@@ -23,13 +23,13 @@ defmodule Siegfried.Exchange do
 
   def get_kline(exchange, symbol, period, kline_1min, cache) do
     from = kline_1min["timestamp"]
-    kline = list_klines(exchange, symbol, period, from - HuobiHelper.seconds(period), from) |> List.last()
+    kline = list_klines(exchange, symbol, period, from - ExchangeHelper.seconds(period), from) |> List.last()
 
     if kline do
       data = Enum.filter(cache, fn item -> item["timestamp"] >= kline.timestamp and item["timestamp"] <= from end)
       %{"low" => low, "high" => high} = List.first(data)
       {low, high} = Enum.reduce(data, {low, high}, fn item, {low, high} -> {min(item["low"], low), max(item["high"], high)} end)
-      close = if from - HuobiHelper.seconds(period) < kline.timestamp - HuobiHelper.seconds("1min"), do: kline_1min["close"], else: kline.close
+      close = if from - ExchangeHelper.seconds(period) < kline.timestamp - ExchangeHelper.seconds("1min"), do: kline_1min["close"], else: kline.close
       %{kline | close: close, low: low, high: high}
     end
   end
@@ -54,13 +54,13 @@ defmodule Siegfried.Exchange do
       symbol = "#{currency}usdt"
       to = if kline, do: kline.timestamp, else: to
       # 现货的周K线比合约K线少了86400秒，查询条件需要调整
-      {from, to} = if period == "1week", do: {from - HuobiHelper.seconds("1day"), to - HuobiHelper.seconds("1day")}, else: {from, to}
+      {from, to} = if period == "1week", do: {from - ExchangeHelper.seconds("1day"), to - ExchangeHelper.seconds("1day")}, else: {from, to}
       spot_klines = list_klines(exchange, symbol, period, from, to)
 
       spot_klines = if period == "1week" do
         Enum.map(spot_klines, fn kline ->
           # 修复周K线的时间戳，使之与合约K线一致
-          timestamp = kline.timestamp + HuobiHelper.seconds("1day")
+          timestamp = kline.timestamp + ExchangeHelper.seconds("1day")
           %{kline | timestamp: timestamp, datetime: Kline.transform_timestamp(timestamp)}
         end)
       else
@@ -96,5 +96,9 @@ defmodule Siegfried.Exchange do
     data
     |> Map.put("timestamp", data["id"])
     |> Map.merge(%{"exchange" => "huobi", "symbol" => symbol, "period" => period})
+  end
+
+  def kline_from_okex(symbol, period, data) do
+    Map.merge(data, %{"exchange" => "okex", "symbol" => symbol, "period" => period})
   end
 end

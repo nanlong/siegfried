@@ -1,4 +1,12 @@
 defmodule TrendTracker.Exchange.Okex.Service do
+  @moduledoc """
+
+  ## Examples
+
+    iex> {:ok, pid} = OkexService.start_link("https://www.okex.com", passphrase: "passphrase", access_key: "access_key", secret_key: "secret_key")
+    iex> OkexService.get(pid, "/api/spot/v3/instruments/btc-usdt/candles", %{start: "2019-11-26T21:31:00.000Z", end: "2019-11-27T21:31:00.000Z", granularity: 60})
+  """
+
   use GenServer
 
   import TrendTracker.Helper
@@ -7,15 +15,6 @@ defmodule TrendTracker.Exchange.Okex.Service do
   require Logger
 
   @recv_timeout 10_000
-
-  # def test do
-  #   alias TrendTracker.Exchange.Okex.Service, as: OkexService
-  #   passphrase = "siegfried"
-  #   access_key = "5015911e-169f-41a3-8d57-cbf1daf01d53"
-  #   secret_key = "E8D67A0018DB8BE67B68D181CCF969EA"
-  #   {:ok, pid} = OkexService.start_link("https://www.okex.com", passphrase: passphrase, access_key: access_key, secret_key: secret_key)
-  #   OkexService.get(pid, "/api/account/v3/deposit/address?currency=usdt")
-  # end
 
   def start_link(url, opts \\ []) do
     state = %{url: url, passphrase: opts[:passphrase], access_key: opts[:access_key], secret_key: opts[:secret_key]}
@@ -62,16 +61,22 @@ defmodule TrendTracker.Exchange.Okex.Service do
   end
 
   defp headers(method, path, body, state) do
-    timestamp = ts() / 1000
-    sign = signature(timestamp, method, path, body, state[:secret_key])
+    if state[:access_key] && state[:secret_key] && state[:passphrase] do
+      timestamp = ts() / 1000
+      sign = signature(timestamp, method, path, body, state[:secret_key])
 
-    [
-      {"OK-ACCESS-PASSPHRASE", state[:passphrase]},
-      {"OK-ACCESS-KEY", state[:access_key]},
-      {"OK-ACCESS-SIGN", sign},
-      {"OK-ACCESS-TIMESTAMP", "#{timestamp}"},
-      {"Content-Type", "application/json"}
-    ]
+      [
+        {"OK-ACCESS-PASSPHRASE", state[:passphrase]},
+        {"OK-ACCESS-KEY", state[:access_key]},
+        {"OK-ACCESS-SIGN", sign},
+        {"OK-ACCESS-TIMESTAMP", "#{timestamp}"},
+        {"Content-Type", "application/json"}
+      ]
+    else
+      [
+        {"Content-Type", "application/json"}
+      ]
+    end
   end
 
   defp join_query(url, query) do

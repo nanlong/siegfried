@@ -5,7 +5,7 @@ defmodule TrendTracker.System do
       use GenServer
 
       alias TrendTracker.Helper
-      alias TrendTracker.Exchange.Huobi.Helper, as: HuobiHelper
+      alias TrendTracker.Exchange.Helper, as: ExchangeHelper
       alias TrendTracker.Bankroll.Position
 
       require Logger
