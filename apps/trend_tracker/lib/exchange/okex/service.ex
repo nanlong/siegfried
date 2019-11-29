@@ -23,6 +23,24 @@ defmodule TrendTracker.Exchange.Okex.Service do
 
   def init(state), do: {:ok, state}
 
+  @doc """
+  30014 请求太频繁
+  30026 用户请求频率过快，超过该接口允许的限额（调用时超过频率限制）
+  30030 请求接口失败，请您重试（请求接口失败，请您重试）
+  34026 划转过于频繁，请降低划转频率
+  """
+  def request(pid, method, path, speed_limit, opts \\ []) do
+    case apply(__MODULE__, method, [pid, path, opts]) do
+      {:ok, %{"code" => code}} when code in [30014, 30026, 30030, 34026] ->
+        Logger.info("request `#{path}` waiting #{speed_limit} seconds...")
+        Process.sleep(trunc(speed_limit * 1000))
+        request(pid, method, path, speed_limit, opts)
+
+      response ->
+        response
+    end
+  end
+
   def get(pid, path, opts \\ []) do
     GenServer.call(pid, {:get, path, opts[:query] || %{}, opts[:retry] || 0}, @recv_timeout)
   end
@@ -59,6 +77,24 @@ defmodule TrendTracker.Exchange.Okex.Service do
 
     {:reply, response(resp), state}
   end
+
+  def optional_query(opts, keys) do
+    URI.encode_query(Keyword.take(opts, keys))
+  end
+
+  def choose_one(opts, keys) do
+    Enum.reduce_while(keys, nil, fn key, _acc ->
+      case opts[key] do
+        nil -> {:cont, nil}
+        value -> {:halt, value}
+      end
+    end)
+  end
+
+  def optional_body(body, opts, keys) do
+    Map.merge(body, Map.new(Keyword.take(opts, keys)))
+  end
+
 
   defp headers(method, path, body, state) do
     if state[:access_key] && state[:secret_key] && state[:passphrase] do

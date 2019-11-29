@@ -1,10 +1,15 @@
 defmodule TrendTracker.Worker do
   @moduledoc """
+  huobi交易所，交割合约
+  okex交易所，只允许交易永续合约
+
   opts = [
     title: "test",
     balance: 10000,
-    exchange: "huobi",
+    exchange: "okex",
+    market: "swap",
     symbols: ["BTC_CQ"],
+    auth: ["passphrase", "access_key", "secret_key"],
     source: Siegfried,
     trend: [module: "Macd", period: "1week"],
     breakout: [module: "BollingerBands", period: "1day"],
@@ -19,6 +24,7 @@ defmodule TrendTracker.Worker do
   use DynamicSupervisor
 
   alias TrendTracker.Helper
+  alias TrendTracker.Exchange.Okex.SwapClient, as: OkexSwapClient
   alias TrendTracker.Exchange.Huobi.Client, as: HuobiClient
   alias TrendTracker.Trend.{Macd, Ema}
   alias TrendTracker.Breakout.{BollingerBands, KeltnerChannel, DonchainChanel}
@@ -40,7 +46,8 @@ defmodule TrendTracker.Worker do
   """
   def start(pid, opts) do
     client_name = Helper.system_name("client", Keyword.take(opts, [:title, :exchange, :backtest]))
-    {:ok, _client_pid} = start_child(pid, {HuobiClient, [name: client_name] ++ Keyword.take(opts, [:balance, :symbols])})
+    client_module = client_module(opts[:exchange], opts[:market])
+    {:ok, _client_pid} = start_child(pid, {client_module, [name: client_name] ++ Keyword.take(opts, [:balance, :symbols, :auth])})
 
     Enum.each(opts[:symbols], fn symbol ->
       public_opts = Keyword.take(opts, [:title, :exchange, :source, :backtest]) ++ [symbol: symbol]
@@ -95,6 +102,9 @@ defmodule TrendTracker.Worker do
   def kline(pid, :trend), do: system_data(pid, trend_modules(), :klines)
   def kline(pid, :breakout), do: system_data(pid, breakout_modules(), :klines)
   def kline(pid, :bankroll), do: system_data(pid, Turtle, :klines)
+
+  defp client_module("okex", "swap"), do: OkexSwapClient
+  defp client_module("huobi", _), do: HuobiClient
 
   defp trend_modules, do: [Macd, Ema]
 

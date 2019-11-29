@@ -26,7 +26,7 @@ defmodule TrendTracker.Backtest do
     symbols_klines = Map.new(opts[:symbols], fn symbol ->
       klines = Map.new([:trend, :breakout, :bankroll], fn system ->
         # 2018-10-01 1538323200
-        {system, opts[:source].list_klines(opts[:exchange], symbol, opts[system][:period], 0, 1538323200)}
+        {system, opts[:source].list_klines(opts[:exchange], symbol, opts[system][:period], 0, 1573566367)}
       end)
       {symbol, klines}
     end)
@@ -90,8 +90,8 @@ defmodule TrendTracker.Backtest do
       push_data(worker, producer, source, exchange, symbol, last_kline_1min["timestamp"], cache)
     else
       kline_1min = source.last_kline(exchange, symbol, "1min")
-      trade = %{"exchange" => exchange, "symbol" => symbol, "topic" => "trade", "data" => %{"datetime" => kline_1min["datetime"], "price" => kline_1min["close"]}}
-      GenServer.call(producer, {:event, trade})
+      data = %{"backtest" => "finished", "trade" => %{"datetime" => kline_1min["datetime"], "price" => kline_1min["close"]}}
+      GenServer.call(producer, {:event, data})
     end
   end
 end
