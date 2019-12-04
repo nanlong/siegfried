@@ -54,7 +54,6 @@ defmodule Siegfried.OkexSupervisor do
 
           Enum.each(kline_topics, fn kline_topic ->
             period = cond do
-              String.starts_with?(kline_topic, "swap/candle60s") -> "1min"
               String.starts_with?(kline_topic, "swap/candle86400s") -> "1day"
               String.starts_with?(kline_topic, "swap/candle604800s") -> "1week"
             end
@@ -80,7 +79,7 @@ defmodule Siegfried.OkexSupervisor do
     end)
     |> List.flatten()
 
-    children = if Application.get_env(:siegfried, :env) in [:prod], do: children, else: []
+    children = if Application.get_env(:siegfried, :env) in [:dev, :prod], do: children, else: []
 
     Supervisor.init(children, strategy: :one_for_one)
   end

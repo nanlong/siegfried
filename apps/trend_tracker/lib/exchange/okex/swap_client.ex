@@ -21,9 +21,11 @@ defmodule TrendTracker.Exchange.Okex.SwapClient do
 
   def start_link(opts \\ []) do
     state = %{
+      name: opts[:name],
       balance: opts[:balance],
       symbols: opts[:symbols],
       auth: opts[:auth],
+      source: opts[:source],
     }
     GenServer.start_link(__MODULE__, state, opts)
   end
@@ -61,11 +63,19 @@ defmodule TrendTracker.Exchange.Okex.SwapClient do
 
     if is_nil(spot_account) || to_float(spot_account["available"]) < state[:balance], do: raise("#{@fund_currency} 账户余额不足 #{state[:balance]}")
 
-    {:ok, Map.merge(state, %{
+    default = Map.merge(state, %{
       service: service,
       symbols_instruments: symbols_instruments,
-      symbols_balance: Map.new(state[:symbols], fn symbol -> {symbol, 0} end),
-    })}
+      symbols_balance: Map.new(state[:symbols], fn symbol -> {symbol, 0} end)
+    })
+
+    state = if state[:source] do
+      apply(state[:source], :get_cache, [state[:name], default])
+    else
+      default
+    end
+
+    {:ok, state}
   end
 
   def handle_call(:balance, _from, state) do
@@ -83,6 +93,11 @@ defmodule TrendTracker.Exchange.Okex.SwapClient do
     # 更新对应币种的资金量
     state = %{state | symbols_balance: %{state[:symbols_balance] | symbol => 0}}
 
+    if state[:source] do
+      key = to_string(state[:name])
+      {:ok, _} = apply(state[:source], :set_cache, [key, state])
+    end
+
     {:reply, state, state}
   end
 
@@ -93,7 +108,14 @@ defmodule TrendTracker.Exchange.Okex.SwapClient do
     state = if system == :breakout do
       # 开仓前准备
       notional = transfer_to_swap(state[:service], state[:balance], currency, length(state[:symbols]))
-      %{state | symbols_balance: %{state[:symbols_balance] | opts[:symbol] => notional}}
+      state = %{state | symbols_balance: %{state[:symbols_balance] | opts[:symbol] => notional}}
+
+      if state[:source] do
+        key = to_string(state[:name])
+        {:ok, _} = apply(state[:source], :set_cache, [key, state])
+      end
+
+      state
     else
       state
     end

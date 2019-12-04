@@ -37,7 +37,16 @@ defmodule TrendTracker.Bankroll.Turtle do
     power = get_params(state, :power)
     atr_ratio = get_params(state, :atr_ratio)
     atr_cost = get_params(state, :atr_cost)
-    Map.merge(state, %{position: Position.new(power, atr_ratio, atr_cost)})
+
+    default = Position.new(power, atr_ratio, atr_cost)
+
+    position = if state[:source] do
+      apply(state[:source], :get_cache, [state[:name], default])
+    else
+      default
+    end
+
+    Map.merge(state, %{position: position})
   end
 
   # 初始化后，更新仓位信息
@@ -69,6 +78,11 @@ defmodule TrendTracker.Bankroll.Turtle do
         position = Position.update(position, :open_price, price[String.to_atom("#{trend}_open")])
         # 更新合约张数
         position = Position.update_volume(position, balance, pre_kline["atr"], cur_kline["close"], contract_size)
+
+        if state[:source] do
+          key = to_string(state[:name])
+          {:ok, _} = apply(state[:source], :set_cache, [key, position])
+        end
 
         Logger.debug "Turtpe update position: #{inspect(position)}"
         {:ok, %{state | position: position}}
@@ -115,11 +129,23 @@ defmodule TrendTracker.Bankroll.Turtle do
 
   def handle_call({:open, trend, price, volume}, _from, state) do
     position = Position.open(state[:position], trend, price, volume)
+
+    if state[:source] do
+      key = to_string(state[:name])
+      {:ok, _} = apply(state[:source], :set_cache, [key, position])
+    end
+
     {:reply, {state[:symbol], position}, %{state | position: position}}
   end
 
   def handle_call(:close, _from, state) do
     position = Position.close(state[:position])
+
+    if state[:source] do
+      key = to_string(state[:name])
+      {:ok, _} = apply(state[:source], :set_cache, [key, position])
+    end
+
     {:reply, {state[:symbol], position}, %{state | position: position}}
   end
 end

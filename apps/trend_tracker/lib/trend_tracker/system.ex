@@ -12,6 +12,7 @@ defmodule TrendTracker.System do
 
       def start_link(opts \\ []) do
         state = %{
+          name: opts[:name],
           exchange: opts[:exchange],
           symbol: opts[:symbol],
           period: opts[:period],

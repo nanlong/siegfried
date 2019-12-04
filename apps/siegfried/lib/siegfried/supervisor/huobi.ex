@@ -33,7 +33,7 @@ defmodule Siegfried.HuobiSupervisor do
         end]}, id: consumer),
         Supervisor.child_spec({HuobiWebSocket, [name: websocket, url: @config[:contract_ws], on_connect: fn pid ->
           trade_topic = "market.#{symbol}.trade.detail"
-          kline_topics = ["market.#{symbol}.kline.1min", "market.#{symbol}.kline.1day", "market.#{symbol}.kline.1week"]
+          kline_topics = ["market.#{symbol}.kline.1day", "market.#{symbol}.kline.1week"]
 
           HuobiWebSocket.on_message(pid, trade_topic, fn response ->
             trade = List.last(response["tick"]["data"])
@@ -49,7 +49,6 @@ defmodule Siegfried.HuobiSupervisor do
 
           Enum.each(kline_topics, fn kline_topic ->
             period = cond do
-              String.ends_with?(kline_topic, "1min") -> "1min"
               String.ends_with?(kline_topic, "1day") -> "1day"
               String.ends_with?(kline_topic, "1week") -> "1week"
             end

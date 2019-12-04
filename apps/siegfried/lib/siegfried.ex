@@ -1,8 +1,26 @@
 defmodule Siegfried do
+
   alias Siegfried.Exchange
   alias Siegfried.Exchange.Kline
   alias TrendTracker.Exchange.Huobi.History, as: HuobiHistory
   alias TrendTracker.Exchange.Okex.History, as: OkexHistory
+
+
+  def get_cache(name, default) do
+    key = to_string(name)
+
+    case Siegfried.TrendTracker.get_cache(key) do
+      nil ->
+        {:ok, _} = Siegfried.TrendTracker.set_cache(key, default)
+        default
+
+      value -> value
+    end
+  end
+
+  defdelegate set_cache(key, value), to: Siegfried.TrendTracker
+  defdelegate delete_cache(key), to: Siegfried.TrendTracker
+  defdelegate delete_all_cache, to: Siegfried.TrendTracker
 
   defdelegate transform_timestamp(timestamp), to: Kline
 

@@ -90,8 +90,9 @@ defmodule TrendTracker.Helper do
   end
 
   def file_log(filename, message) do
-    Logger.info(message)
-    File.open("./#{filename}", [:unicode, :append], fn file ->
+    path = "./log"
+    :ok = File.mkdir_p(path)
+    File.open("#{path}/#{filename}", [:unicode, :append], fn file ->
       IO.write(file, "#{transform_timestamp(:os.system_time(:second))} #{message}\n")
     end)
   end
