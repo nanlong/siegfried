@@ -122,8 +122,15 @@ defmodule TrendTracker.Exchange.Okex.SwapAPI do
 
   defp do_submit_market_order(_service, currency, type, "0", result) do
     contract_size = contract_size(currency)
-    filled_qty = result |> Enum.map(fn order -> to_int(order["filled_qty"]) end) |> Enum.sum()
-    price_avg = contract_size * filled_qty / (result |> Enum.map(fn order -> contract_size * to_int(order["filled_qty"]) / to_float(order["price_avg"]) end) |> Enum.sum())
+
+    {price_avg, filled_qty} = if length(result) > 0 do
+      filled_qty = result |> Enum.map(fn order -> to_int(order["filled_qty"]) end) |> Enum.sum()
+      price_avg = contract_size * filled_qty / (result |> Enum.map(fn order -> contract_size * to_int(order["filled_qty"]) / to_float(order["price_avg"]) end) |> Enum.sum())
+      {price_avg, filled_qty}
+    else
+      {nil, nil}
+    end
+
     {:ok, %{"instrument_id" => String.upcase("#{currency}-usd-swap"), "type" => type, "state" => "2", "filled_qty" => filled_qty, "price_avg" => price_avg}}
   end
   defp do_submit_market_order(service, currency, type, size, result) do

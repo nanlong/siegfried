@@ -44,22 +44,22 @@ defmodule TrendTracker.Exchange.Okex.SwapClient do
       {swap_instrument_id, %{"spot" => spot_instrument, "swap" => swap_instrument}}
     end)
 
-    # 设定杠杆全仓模式20倍
+    # 设定杠杆全仓模式50倍
     Enum.each(state[:symbols], fn instrument_id ->
       currency = symbols_instruments[instrument_id]["swap"]["base_currency"]
-      {:ok, %{"margin_mode" => "crossed"}} = SwapAPI.set_leverage(service, currency, "20", "3")
+      {:ok, %{"margin_mode" => "crossed"}} = SwapAPI.set_leverage(service, currency, "50", "3")
     end)
 
     # 将资金转入币币账户
     {:ok, account} = AccountAPI.get_wallet(service, @fund_currency)
 
-    if to_float(account["available"]) > 0 do
+    if account && to_float(account["available"]) > 0 do
       {:ok, %{"result" => true}} = AccountAPI.transfer(service, @fund_currency, account["available"], 6, 1)
     end
 
     {:ok, spot_account} = SpotAPI.get_accounts(service, @fund_currency)
 
-    if to_float(spot_account["available"]) < state[:balance], do: raise("#{@fund_currency} 账户余额不足 #{state[:balance]}")
+    if is_nil(spot_account) || to_float(spot_account["available"]) < state[:balance], do: raise("#{@fund_currency} 账户余额不足 #{state[:balance]}")
 
     {:ok, Map.merge(state, %{
       service: service,
@@ -116,8 +116,8 @@ defmodule TrendTracker.Exchange.Okex.SwapClient do
     # 转入到币币账户卖出
     {:ok, spot_account} = SpotAPI.get_accounts(state[:service], @fund_currency)
     {:ok, swap_account} = SwapAPI.get_accounts(state[:service], currency)
-    {:ok, _} = AccountAPI.transfer(state[:service], currency, swap_account["available"], 9, 1)
-    {:ok, _} = SpotAPI.submit_market_order(state[:service], currency, "sell", size: swap_account["available"])
+    {:ok, _} = AccountAPI.transfer(state[:service], currency, swap_account["info"]["max_withdraw"], 9, 1)
+    {:ok, _} = SpotAPI.submit_market_order(state[:service], currency, "sell", size: swap_account["info"]["max_withdraw"])
     {:ok, spot_account_after} = SpotAPI.get_accounts(state[:service], @fund_currency)
 
     # 统计盈利情况

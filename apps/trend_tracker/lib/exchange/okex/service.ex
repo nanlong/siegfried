@@ -30,14 +30,35 @@ defmodule TrendTracker.Exchange.Okex.Service do
   34026 划转过于频繁，请降低划转频率
   """
   def request(pid, method, path, speed_limit, opts \\ []) do
-    case apply(__MODULE__, method, [pid, path, opts]) do
-      {:ok, %{"code" => code}} when code in [30014, 30026, 30030, 34026] ->
+    response = apply(__MODULE__, method, [pid, path, opts])
+
+    if Application.get_env(:siegfried, :env) in [:dev, :prod] do
+      file_log("okex.restapi.log", "#{response |> elem(1) |> inspect()}")
+    end
+
+    case response do
+      {:ok, %{status_code: status_code, body: body}} when status_code in 200..499 ->
+        case Jason.decode(body) do
+          {:ok, body} ->
+            case body do
+              %{"code" => code} when code in [30014, 30026, 30030, 34026] ->
+                Logger.info("request `#{path}` waiting #{speed_limit} seconds...")
+                Process.sleep(trunc(speed_limit * 1000))
+                request(pid, method, path, speed_limit, opts)
+
+              _ -> {:ok, body}
+            end
+
+          _ ->
+            response
+        end
+
+      {:ok, %{status_code: status_code}} when status_code in [504] ->
         Logger.info("request `#{path}` waiting #{speed_limit} seconds...")
         Process.sleep(trunc(speed_limit * 1000))
         request(pid, method, path, speed_limit, opts)
 
-      response ->
-        response
+      _ -> response
     end
   end
 
@@ -50,7 +71,7 @@ defmodule TrendTracker.Exchange.Okex.Service do
   end
 
   def handle_call({:get, path, query, retry}, _from, state) do
-    resp = Enum.reduce_while(0..retry, {:error, nil}, fn _x, _acc ->
+    response = Enum.reduce_while(0..retry, {:error, nil}, fn _x, _acc ->
       url = join_query(state[:url] <> path, query)
       headers = headers("get", path, nil, state)
 
@@ -60,15 +81,11 @@ defmodule TrendTracker.Exchange.Okex.Service do
       end
     end)
 
-    if Application.get_env(:siegfried, :env) in [:prod] do
-      file_log("okex.restapi.log", "#{resp |> elem(1) |> inspect()}")
-    end
-
-    {:reply, response(resp), state}
+    {:reply, response, state}
   end
 
   def handle_call({:post, path, body, retry}, _from, state) do
-    resp = Enum.reduce_while(0..retry, {:error, nil}, fn _x, _acc ->
+    response = Enum.reduce_while(0..retry, {:error, nil}, fn _x, _acc ->
       url = state[:url] <> path
       body = Jason.encode!(body || %{})
       headers = headers("post", path, body, state)
@@ -79,11 +96,7 @@ defmodule TrendTracker.Exchange.Okex.Service do
       end
     end)
 
-    if Application.get_env(:siegfried, :env) in [:prod] do
-      file_log("okex.restapi.log", "#{resp |> elem(1) |> inspect()}")
-    end
-
-    {:reply, response(resp), state}
+    {:reply, response, state}
   end
 
   def optional_query(opts, keys) do
@@ -129,16 +142,5 @@ defmodule TrendTracker.Exchange.Okex.Service do
     else
       "#{url}?#{URI.encode_query(query)}"
     end
-  end
-
-  defp response({:ok, %HTTPoison.Response{body: body}}) do
-    try do
-      {:ok, Jason.decode!(body)}
-    rescue
-      _ -> {:ok, body}
-    end
-  end
-  defp response({:error, %HTTPoison.Error{reason: reason}}) do
-    {:error, reason}
   end
 end
