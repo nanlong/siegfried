@@ -48,14 +48,14 @@ defmodule Siegfried.Exchange do
     klines = Repo.all(query)
 
     # 合约K线可能比较少，使用现货的K线数据
-    if exchange == "huobi" and String.contains?(symbol, "_") do
+    if String.contains?(symbol, "_") || String.contains?(symbol, "-") do
       kline = List.first(klines)
-      currency = symbol |> String.split("_") |> List.first() |> String.downcase()
-      symbol = "#{currency}usdt"
+      pattern = if String.contains?(symbol, "_"), do: "_", else: "-"
+      currency = symbol |> String.split(pattern) |> List.first() |> String.downcase()
       to = if kline, do: kline.timestamp, else: to
       # 现货的周K线比合约K线少了86400秒，查询条件需要调整
       {from, to} = if period == "1week", do: {from - ExchangeHelper.seconds("1day"), to - ExchangeHelper.seconds("1day")}, else: {from, to}
-      spot_klines = list_klines(exchange, symbol, period, from, to)
+      spot_klines = list_klines("huobi", "#{currency}usdt", period, from, to)
 
       spot_klines = if period == "1week" do
         Enum.map(spot_klines, fn kline ->

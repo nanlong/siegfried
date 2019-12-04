@@ -77,7 +77,7 @@ defmodule TrendTracker.Helper do
   end
   def to_float(number, decimals) when is_integer(decimals) do
     float = to_float(number, nil)
-    Float.floor(float, decimals)
+    Float.round(float, decimals)
   end
 
   def to_int(number) do
@@ -91,8 +91,8 @@ defmodule TrendTracker.Helper do
 
   def file_log(filename, message) do
     Logger.info(message)
-    File.open("./#{filename}.log", [:unicode, :append], fn file ->
-      IO.write(file, "#{message}\n")
+    File.open("./#{filename}", [:unicode, :append], fn file ->
+      IO.write(file, "#{transform_timestamp(:os.system_time(:second))} #{message}\n")
     end)
   end
 

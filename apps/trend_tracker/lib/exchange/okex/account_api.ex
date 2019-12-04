@@ -18,7 +18,8 @@ defmodule TrendTracker.Exchange.Okex.AccountAPI do
   def get_wallet(service, currency) do
     path = "/api/account/v3/wallet/#{currency}"
     speed_limit = 2 / 20
-    OkexService.request(service, :get, path, speed_limit)
+    {:ok, data} = OkexService.request(service, :get, path, speed_limit)
+    {:ok, Enum.find(data, fn item -> item["currency"] == String.upcase(currency) end)}
   end
 
   @doc """

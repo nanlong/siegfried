@@ -2,11 +2,12 @@ defmodule Siegfried.OkexSupervisor do
   use Supervisor
 
   alias Siegfried.Exchange
-  alias TrendTracker.Helper, as: TrendTrackerHelper
   alias TrendTracker.Exchange.Helper, as: ExchangeHelper
   alias TrendTracker.Exchange.Okex.WebSocket, as: OkexWebSocket
   alias TrendTracker.Exchange.Producer
   alias TrendTracker.Exchange.Consumer
+
+  import TrendTracker.Helper
 
   @config Application.fetch_env!(:trend_tracker, :okex)
 
@@ -18,9 +19,9 @@ defmodule Siegfried.OkexSupervisor do
     exchange = "okex"
 
     children = Enum.map(@config[:contract_symbols], fn symbol ->
-      producer = TrendTrackerHelper.system_name("producer", exchange: exchange, symbol: symbol)
-      consumer = TrendTrackerHelper.system_name("consumer", exchange: exchange, symbol: symbol)
-      websocket = TrendTrackerHelper.system_name("websocket", exchange: exchange, symbol: symbol)
+      producer = system_name("producer", exchange: exchange, symbol: symbol)
+      consumer = system_name("consumer", exchange: exchange, symbol: symbol)
+      websocket = system_name("websocket", exchange: exchange, symbol: symbol)
 
       [
         Supervisor.child_spec({Producer, [name: producer]}, id: producer),
@@ -33,7 +34,7 @@ defmodule Siegfried.OkexSupervisor do
         end]}, id: consumer),
         Supervisor.child_spec({OkexWebSocket, [name: websocket, url: @config[:ws], on_connect: fn pid ->
           trade_topic = "swap/trade:#{symbol}"
-          kline_topics = ["swap/candle60s:#{symbol}", "swap/candle86400s:#{symbol}", "swap/candle604800s:#{symbol}"]
+          kline_topics = ["swap/candle86400s:#{symbol}", "swap/candle604800s:#{symbol}"]
 
           Process.sleep(100)
 
@@ -41,8 +42,8 @@ defmodule Siegfried.OkexSupervisor do
             trade = List.last(response["data"])
 
             if trade do
-              price = TrendTrackerHelper.to_float(trade["price"])
-              volume = TrendTrackerHelper.to_int(trade["size"])
+              price = to_float(trade["price"])
+              volume = to_int(trade["size"])
               timestamp = ExchangeHelper.datetime_to_timestamp(trade["timestamp"])
               datetime = ExchangeHelper.timestamp_to_local(timestamp)
               data = %{"price" => price, "volume" => volume, "timestamp" => timestamp, "datetime" => datetime}
@@ -66,6 +67,7 @@ defmodule Siegfried.OkexSupervisor do
                 timestamp = ExchangeHelper.datetime_to_timestamp(data["datetime"])
                 datetime = ExchangeHelper.timestamp_to_local(timestamp)
                 data = Map.merge(data, %{"timestamp" => timestamp, "datetime" => datetime})
+                data = Enum.reduce(["open", "close", "high", "low"], data, fn key, acc -> Map.update!(acc, key, &to_float/1) end)
                 item = %{"exchange" => exchange, "symbol" => symbol, "topic" => "kline", "period" => period, "data" => data}
                 GenServer.call(producer, {:event, item})
               end)

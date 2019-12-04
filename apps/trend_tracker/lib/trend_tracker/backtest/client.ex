@@ -1,18 +1,51 @@
 defmodule TrendTracker.Backtest.Client do
 
+  use GenServer
+
   import TrendTracker.Helper, only: [file_log: 2, to_float: 2, float_to_binary: 2]
   import TrendTracker.Exchange.Helper, only: [contract_size: 1, futures_profit: 5]
 
-  def submit_order(_client_name, {from, {:open, trend, trade}}, volume, state) do
-    file_log("backtest", "#{String.slice(trade["datetime"], 0..24)} #{state[:symbol]} #{direction(from, :open, trend)}，价格：#{format(trade["price"], 8)}，合约张数：#{format(volume)}")
-    {:ok, %{"price" => trade["price"], "volume" => volume, "filled_cash_amount" => 0}}
+  def start_link(opts \\ []) do
+    state = %{
+      balance: opts[:balance],
+      symbols: opts[:symbols],
+    }
+    GenServer.start_link(__MODULE__, state, opts)
   end
 
-  def submit_order(_client_name, {from, {:close, trend, trade}}, volume, state) do
-    file_log("backtest", "#{String.slice(trade["datetime"], 0..24)} #{state[:symbol]} #{direction(from, :close, trend)}，价格：#{format(trade["price"], 8)}，合约张数：#{format(volume)}")
-    balance = GenServer.call(state[:systems][:client], {:balance, state[:symbol]})
-    {_symbol, position} = GenServer.call(state[:systems][:bankroll], :position)
-    contract_size = contract_size(state[:symbol])
+  def init(state) do
+    symbols_balance = Map.new(state[:symbols], fn symbol -> {symbol, state[:balance] / length(state[:symbols])} end)
+    {:ok, Map.merge(state, %{symbols_balance: symbols_balance})}
+  end
+
+  def handle_call(:balance, _from, state) do
+    {:reply, state[:balance], state}
+  end
+
+  def handle_call({:balance, symbol}, _from, state) do
+    {:reply, state[:symbols_balance][symbol], state}
+  end
+
+  def handle_call({:profit, symbol, balance}, _from, state) do
+    # 更新资金总量
+    state = %{state | balance: state[:balance] + (balance - state[:symbols_balance][symbol])}
+
+    # 更新对应币种的资金量
+    state = %{state | symbols_balance: %{state[:symbols_balance] | symbol => 0}}
+
+    {:reply, state, state}
+  end
+
+  def handle_call({system, :open, trend, trade, volume, opts}, _from, state) do
+    file_log("backtest.log", "#{String.slice(trade["datetime"], 0..24)} #{opts[:symbol]} #{direction(system, :open, trend)}，价格：#{format(trade["price"], 8)}，合约张数：#{format(volume)}")
+    {:reply, %{"price" => trade["price"], "volume" => volume}, state}
+  end
+
+  def handle_call({system, :close, trend, trade, volume, opts}, _from, state) do
+    file_log("backtest.log", "#{String.slice(trade["datetime"], 0..24)} #{opts[:symbol]} #{direction(system, :close, trend)}，价格：#{format(trade["price"], 8)}，合约张数：#{format(volume)}")
+    balance = state[:symbols_balance][opts[:symbol]]
+    position = opts[:position]
+    contract_size = contract_size(opts[:symbol])
     first_order = List.first(position.orders)
     amount = to_float(balance / first_order.price, 8)
 
@@ -26,11 +59,20 @@ defmodule TrendTracker.Backtest.Client do
     filled_cash_amount = trade["price"] * (amount + hedge_profit + trade_profit)
     diff = filled_cash_amount - balance
 
-    total_balance = GenServer.call(state[:systems][:client], :balance)
+    total_balance = state[:balance]
     current_balance = total_balance + diff
-    file_log("backtest", "#{state[:symbol]} 盈利情况，原有资金：#{format(total_balance, 2)}，当前资金：#{format(current_balance, 2)}，变化：#{if diff >= 0, do: "+"}#{format(diff, 2)} #{if diff >= 0, do: "+"}#{format(diff / total_balance * 100, 2)}%")
+    file_log("backtest.log", "#{opts[:symbol]} 盈利情况，原有资金：#{format(total_balance, 2)}，当前资金：#{format(current_balance, 2)}，变化：#{if diff >= 0, do: "+"}#{format(diff, 2)} #{if diff >= 0, do: "+"}#{format(diff / total_balance * 100, 2)}%")
 
-    {:ok, %{"price" => trade["price"], "volume" => volume, "filled_cash_amount" => filled_cash_amount}}
+    {:reply, %{"filled_cash_amount" => filled_cash_amount}, state}
+  end
+
+  def submit_order(client_name, {from, {:open, trend, trade}}, volume, state) do
+    {:ok, GenServer.call(client_name, {from, :open, trend, trade, volume, state})}
+  end
+
+  def submit_order(client_name, {from, {:close, trend, trade}}, volume, state) do
+    {_symbol, position} = GenServer.call(state[:systems][:bankroll], :position)
+    {:ok, GenServer.call(client_name, {from, :close, trend, trade, volume, Map.merge(state, %{position: position})})}
   end
 
   defp direction(system, action, trend) do

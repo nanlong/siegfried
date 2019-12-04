@@ -60,6 +60,10 @@ defmodule TrendTracker.Exchange.Okex.Service do
       end
     end)
 
+    if Application.get_env(:siegfried, :env) in [:prod] do
+      file_log("okex.restapi.log", "#{resp |> elem(1) |> inspect()}")
+    end
+
     {:reply, response(resp), state}
   end
 
@@ -74,6 +78,10 @@ defmodule TrendTracker.Exchange.Okex.Service do
         resp -> {:cont, resp}
       end
     end)
+
+    if Application.get_env(:siegfried, :env) in [:prod] do
+      file_log("okex.restapi.log", "#{resp |> elem(1) |> inspect()}")
+    end
 
     {:reply, response(resp), state}
   end

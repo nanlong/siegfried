@@ -7,7 +7,8 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
     iex> {:ok, pid} = OkexWebSocket.start_link(url: url, passphrase: "passphrase", access_key: "access_key", secret_key_key: "secret_key_key")
 
     iex> OkexWebSocket.push(pid, "ping", fn msg -> Process.send_after(self(), :ping, 5000) end)
-    iex> OkexWebSocket.push(pid, %{op: "subscribe", args: ["swap/candle60s:BTC-USD-SWAP", "swap/candle60s:EOS-USD-SWAP"]}, fn msg -> IO.inspect(msg) end)
+    iex> OkexWebSocket.push(pid, %{op: "subscribe", args: ["swap/price_range:BTC-USD-SWAP"]}, fn msg -> IO.inspect(msg) end)
+    iex> OkexWebSocket.on_message(pid, "swap/price_range:BTC-USD-SWAP", fn msg -> IO.inspect(msg) end)
   """
   use WebSockex
 
@@ -15,8 +16,6 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
   import TrendTracker.Exchange.Okex.Helper
 
   require Logger
-
-  @timeout 60_000
 
   def start_link(opts \\ []) do
     state = %{
@@ -28,7 +27,7 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
       on_connect: opts[:on_connect],
       bindings: [],
       sub_topics: %{},
-      check_topics_timeout: nil,
+      ping: nil,
     }
     WebSockex.start_link(opts[:url], __MODULE__, state, opts)
   end
@@ -57,14 +56,9 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
       on_connect.()
     end
 
-    # 重连情况下，取消未执行的定时检查
-    if is_reference(state[:check_topics_timeout]), do: Process.cancel_timer(state[:check_topics_timeout])
-    state = Map.merge(state, %{bindings: [], sub_topics: %{}, check_topics_timeout: nil})
+    if is_reference(state[:ping]), do: Process.cancel_timer(state[:ping])
 
-    # 每20秒ping-pong
-    push(self(), "ping", fn _ -> Process.send_after(self(), :ping, 20_000) end)
-
-    {:ok, state}
+    {:ok, Map.merge(state, %{ping: nil, bindings: [], sub_topics: %{}})}
   end
 
   def push(pid, frame, callback \\ nil) do
@@ -101,14 +95,6 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
       state
     end
 
-    # 开启定时检查
-    state = if frame["op"] == "subscribe" && not is_reference(state[:check_topics_timeout]) do
-      refer = Process.send_after(self(), :check_topics_timeout, @timeout)
-      Map.merge(state, %{check_topics_timeout: refer})
-    else
-      state
-    end
-
     {:reply, {:text, Jason.encode!(frame)}, state}
   end
 
@@ -122,17 +108,26 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
     {:ok, state}
   end
 
-  def handle_cast(:close, state), do: {:close, state}
-  def handle_cast({:close, code, reason}, state), do: {:close, {code, reason}, state}
+  def handle_cast(:close, state) do
+    {:close, state}
+  end
+  def handle_cast({:close, code, reason}, state) do
+    {:close, {code, reason}, state}
+  end
+
+  def handle_info(:ping, state) do
+    {:reply, {:text, "ping"}, state}
+  end
 
   def handle_disconnect(reason, state) do
-    Logger.error("Okex websocket reconnect \nreason: #{inspect(reason)}")
+    message = "Okex websocket reconnect \nreason: #{inspect(reason)} \nstate: #{inspect(state)}"
+    file_log("okex.websocket.error.log", message)
     {:reconnect, state}
   end
 
   def handle_terminate(reason, state) do
-    if is_reference(state[:check_topics_timeout]), do: Process.cancel_timer(state[:check_topics_timeout])
-    Logger.error("Okex websocket exit normal \nreason: #{inspect(reason)}")
+    message = "Okex websocket exit normal \nreason: #{inspect(reason)} \nstate: #{inspect(state)}"
+    file_log("okex.websocket.error.log", message)
     exit(:normal)
   end
 
@@ -161,42 +156,9 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
       _ -> state
     end
 
-    {:ok, state}
-  end
+    if is_reference(state[:ping]), do: Process.cancel_timer(state[:ping])
+    state = Map.merge(state, %{ping: Process.send_after(self(), :ping, 5_000)})
 
-  def handle_info(:ping, state) do
-    push(self(), "ping", fn "pong" -> Process.send_after(self(), :ping, 5000) end)
-    {:ok, state}
-  end
-
-  def handle_info(:check_topics_timeout, %{sub_topics: sub_topics} = state) when map_size(sub_topics) > 0 do
-    topics = Map.keys(sub_topics)
-
-    topic = Enum.reduce_while(topics, nil, fn topic, _acc ->
-      topic_ts = sub_topics[topic]
-
-      # 在预定时间内没有收到信息，主动关闭 websocket，会自动重连
-      if topic_ts && topic_ts < ts() - @timeout do
-        WebSockex.cast(self(), :close)
-        {:halt, topic}
-
-      # 没有超时的情况
-      else
-        {:cont, nil}
-      end
-    end)
-
-    # 没有超时的情况下，准备下一次检查
-    if is_nil(topic) do
-      refer = Process.send_after(self(), :check_topics_timeout, @timeout)
-      {:ok, Map.merge(state, %{check_topics_timeout: refer})}
-
-    # 有超时，websocket 会重连
-    else
-      {:ok, state}
-    end
-  end
-  def handle_info(:check_topics_timeout, state) do
     {:ok, state}
   end
 

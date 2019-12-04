@@ -23,7 +23,7 @@ defmodule Siegfried.MixProject do
   def application do
     [
       mod: {Siegfried.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :con_cache]
     ]
   end
 
@@ -41,6 +41,7 @@ defmodule Siegfried.MixProject do
       {:postgrex, ">= 0.0.0"},
       {:jason, "~> 1.0"},
       {:timex, "~> 3.6"},
+      {:con_cache, "~> 0.13"},
     ]
   end
 

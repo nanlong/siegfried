@@ -2,49 +2,162 @@ defmodule TrendTracker.Exchange.Okex.SwapClient do
   @moduledoc """
   okex 客户端 - 交易永续合约
 
-  OkexSwapClient.test()
+  ## Examples
+
+    iex> {:ok, pid} = OkexSwapClient.start_link(balance: 10000, symbols: [], auth: ["passphrase", "access_key", "secret_key"])
 
   """
   use GenServer
 
   alias TrendTracker.Exchange.Okex.Service, as: OkexService
-  alias TrendTracker.Exchange.Okex.AccountAPI
-  alias TrendTracker.Exchange.Okex.SwapAPI
+  alias TrendTracker.Exchange.Okex.{AccountAPI, SpotAPI, SwapAPI}
+
+  import TrendTracker.Helper
+  import TrendTracker.Exchange.Helper
 
   @config Application.fetch_env!(:trend_tracker, :okex)
+
+  @fund_currency "usdt"
 
   def start_link(opts \\ []) do
     state = %{
       balance: opts[:balance],
       symbols: opts[:symbols],
-      passphrase: Enum.at(opts[:auth], 0),
-      access_key: Enum.at(opts[:auth], 1),
-      secret_key: Enum.at(opts[:auth], 2),
+      auth: opts[:auth],
     }
     GenServer.start_link(__MODULE__, state, opts)
   end
 
   def init(state) do
-    {:ok, service} = OkexService.start_link(
-      @config[:api],
-      passphrase: state[:passphrase],
-      access_key: state[:access_key],
-      secret_key: state[:secret_key]
-    )
-    {:ok, Map.merge(state, %{service: service})}
+    # 交易账户
+    {passphrase, access_key, secret_key} = state[:auth]
+    {:ok, service} = OkexService.start_link(@config[:api], passphrase: passphrase, access_key: access_key, secret_key: secret_key)
+
+    # 获取币币和永续合约的交易对信息
+    {:ok, spot_instruments} = SpotAPI.get_instruments(service)
+    {:ok, swap_instruments} = SwapAPI.get_instruments(service)
+
+    symbols_instruments = Map.new(state[:symbols], fn swap_instrument_id ->
+      swap_instrument = Enum.find(swap_instruments, fn item -> item["instrument_id"] == swap_instrument_id end)
+      spot_instrument_id = String.upcase("#{swap_instrument["base_currency"]}-#{@fund_currency}")
+      spot_instrument = Enum.find(spot_instruments, fn item -> item["instrument_id"] == spot_instrument_id end)
+      {swap_instrument_id, %{"spot" => spot_instrument, "swap" => swap_instrument}}
+    end)
+
+    # 设定杠杆全仓模式20倍
+    Enum.each(state[:symbols], fn instrument_id ->
+      currency = symbols_instruments[instrument_id]["swap"]["base_currency"]
+      {:ok, %{"margin_mode" => "crossed"}} = SwapAPI.set_leverage(service, currency, "20", "3")
+    end)
+
+    # 将资金转入币币账户
+    {:ok, account} = AccountAPI.get_wallet(service, @fund_currency)
+
+    if to_float(account["available"]) > 0 do
+      {:ok, %{"result" => true}} = AccountAPI.transfer(service, @fund_currency, account["available"], 6, 1)
+    end
+
+    {:ok, spot_account} = SpotAPI.get_accounts(service, @fund_currency)
+
+    if to_float(spot_account["available"]) < state[:balance], do: raise("#{@fund_currency} 账户余额不足 #{state[:balance]}")
+
+    {:ok, Map.merge(state, %{
+      service: service,
+      symbols_instruments: symbols_instruments,
+      symbols_balance: Map.new(state[:symbols], fn symbol -> {symbol, 0} end),
+    })}
   end
 
-  # def handle_call(_, _from, state) do
+  def handle_call(:balance, _from, state) do
+    {:reply, state[:balance], state}
+  end
 
-  # end
+  def handle_call({:balance, symbol}, _from, state) do
+    {:reply, state[:symbols_balance][symbol], state}
+  end
 
-  # def submit_order(client_name, {from, {:open, trend, trade}}, volume, state) do
-  #   symbol = state[:symbol]
+  def handle_call({:profit, symbol, balance}, _from, state) do
+    # 更新资金总量
+    state = %{state | balance: state[:balance] + (balance - state[:symbols_balance][symbol])}
 
+    # 更新对应币种的资金量
+    state = %{state | symbols_balance: %{state[:symbols_balance] | symbol => 0}}
 
-  # end
+    {:reply, state, state}
+  end
 
-  # def submit_order(client_name, {from, {:close, trend, trade}}, volume, state) do
+  def handle_call({system, :open, trend, _price, volume, opts}, _from, state) do
+    instrument = state[:symbols_instruments][opts[:symbol]]["swap"]
+    currency = instrument["base_currency"]
 
-  # end
+    state = if system == :breakout do
+      # 开仓前准备
+      notional = transfer_to_swap(state[:service], state[:balance], currency, length(state[:symbols]))
+      %{state | symbols_balance: %{state[:symbols_balance] | opts[:symbol] => notional}}
+    else
+      state
+    end
+
+    {:ok, order} = SwapAPI.open_position(state[:service], currency, trend, to_string(volume))
+    file_log("okex.position.log", "#{opts[:symbol]} #{direction(system, :open, trend)}，价格：#{order["price_avg"]}，合约张数：#{order["filled_qty"]}")
+    {:reply, %{"price" => to_float(order["price_avg"]), "volume" => to_int(order["filled_qty"]), "filled_cash_amount" => 0}, state}
+  end
+
+  def handle_call({system, :close, trend, price, volume, opts}, _from, state) do
+    instrument = state[:symbols_instruments][opts[:symbol]]["swap"]
+    currency = instrument["base_currency"]
+
+    # 平仓
+    {:ok, position_info} = SwapAPI.get_position(state[:service], currency: currency)
+    Enum.each(position_info["holding"], fn position ->
+      {:ok, _order} = SwapAPI.close_position(state[:service], currency, String.to_atom(position["side"]), position["avail_position"])
+    end)
+
+    # 转入到币币账户卖出
+    {:ok, spot_account} = SpotAPI.get_accounts(state[:service], @fund_currency)
+    {:ok, swap_account} = SwapAPI.get_accounts(state[:service], currency)
+    {:ok, _} = AccountAPI.transfer(state[:service], currency, swap_account["available"], 9, 1)
+    {:ok, _} = SpotAPI.submit_market_order(state[:service], currency, "sell", size: swap_account["available"])
+    {:ok, spot_account_after} = SpotAPI.get_accounts(state[:service], @fund_currency)
+
+    # 统计盈利情况
+    filled_cash_amount = to_float(spot_account_after["available"]) - to_float(spot_account["available"])
+    file_log("okex.position.log", "#{opts[:symbol]} #{direction(system, :close, trend)}，预估价格：#{price}，合约张数：#{volume}")
+    {:reply, %{"filled_cash_amount" => filled_cash_amount}, state}
+  end
+
+  def submit_order(client_name, {from, {action, trend, trade}}, volume, state) do
+    GenServer.call(client_name, {from, action, trend, trade["price"], volume, state})
+  end
+
+  defp transfer_to_swap(service, balance, currency, count) do
+    # 使用总资金5%
+    notional = balance * 0.05
+
+    # 购入现货
+    {:ok, _order} = SpotAPI.submit_market_order(service, currency, "buy", notional: to_string(notional))
+
+    # 转入到永续合约账户
+    {:ok, account} = SpotAPI.get_accounts(service, currency)
+    {:ok, _} = AccountAPI.transfer(service, currency, account["available"], 1, 9)
+
+    # 对冲
+    hedge_size = (balance / count / contract_size(currency)) |> to_int() |> to_string()
+    {:ok, _order} = SwapAPI.open_position(service, currency, :short, hedge_size)
+
+    notional
+  end
+
+  defp direction(system, action, trend) do
+    case {system, action, trend} do
+      {:breakout, :open, :long} -> "开仓做多"
+      {:bankroll, :open, :long} -> "加仓做多"
+      {:breakout, :open, :short} -> "开仓做空"
+      {:bankroll, :open, :short} -> "加仓做空"
+      {:breakout, :close, :long} -> "平多止盈"
+      {:bankroll, :close, :long} -> "平多止损"
+      {:breakout, :close, :short} -> "平空止盈"
+      {:bankroll, :close, :short} -> "平空止损"
+    end
+  end
 end

@@ -10,6 +10,7 @@ defmodule Siegfried.Application do
       Siegfried.Repo,
       Siegfried.HuobiSupervisor,
       Siegfried.OkexSupervisor,
+      {ConCache, [name: :okex, ttl_check_interval: false]}
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Siegfried.Supervisor)

@@ -24,6 +24,7 @@ defmodule TrendTracker.Worker do
   use DynamicSupervisor
 
   alias TrendTracker.Helper
+  alias TrendTracker.Backtest.Client, as: BacktestClient
   alias TrendTracker.Exchange.Okex.SwapClient, as: OkexSwapClient
   alias TrendTracker.Exchange.Huobi.Client, as: HuobiClient
   alias TrendTracker.Trend.{Macd, Ema}
@@ -46,7 +47,7 @@ defmodule TrendTracker.Worker do
   """
   def start(pid, opts) do
     client_name = Helper.system_name("client", Keyword.take(opts, [:title, :exchange, :backtest]))
-    client_module = client_module(opts[:exchange], opts[:market])
+    client_module = client_module(opts[:exchange], opts[:market], opts[:backtest])
     {:ok, _client_pid} = start_child(pid, {client_module, [name: client_name] ++ Keyword.take(opts, [:balance, :symbols, :auth])})
 
     Enum.each(opts[:symbols], fn symbol ->
@@ -103,8 +104,9 @@ defmodule TrendTracker.Worker do
   def kline(pid, :breakout), do: system_data(pid, breakout_modules(), :klines)
   def kline(pid, :bankroll), do: system_data(pid, Turtle, :klines)
 
-  defp client_module("okex", "swap"), do: OkexSwapClient
-  defp client_module("huobi", _), do: HuobiClient
+  defp client_module(_, _, true), do: BacktestClient
+  defp client_module("okex", "swap", _), do: OkexSwapClient
+  defp client_module("huobi", _, _), do: HuobiClient
 
   defp trend_modules, do: [Macd, Ema]
 
