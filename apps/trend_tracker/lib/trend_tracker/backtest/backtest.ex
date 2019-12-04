@@ -26,7 +26,7 @@ defmodule TrendTracker.Backtest do
     symbols_klines = Map.new(opts[:symbols], fn symbol ->
       klines = Map.new([:trend, :breakout, :bankroll], fn system ->
         # 2018-10-01 1538323200
-        {system, opts[:source].list_klines(opts[:exchange], symbol, opts[system][:period], 0, 1573566367)}
+        {system, opts[:source].list_klines(opts[:exchange], symbol, opts[system][:period], 0, 1538323200)}
       end)
       {symbol, klines}
     end)

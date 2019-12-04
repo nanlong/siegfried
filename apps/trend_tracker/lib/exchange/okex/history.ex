@@ -59,8 +59,10 @@ defmodule TrendTracker.Exchange.Okex.History do
     query = %{start: from, end: to, granularity: ExchangeHelper.seconds(state[:period])}
 
     case OkexService.get(state[:service], path, query: query) do
-      {:ok, data} ->
-        data = Enum.map(data, fn item ->
+      {:ok, response} ->
+        body = Jason.decode!(response.body)
+
+        data = Enum.map(body, fn item ->
           kline = Map.new(Enum.zip(keys, item))
           Map.merge(kline, %{"timestamp" => d_t(kline["datetime"])})
         end)

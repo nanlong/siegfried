@@ -8,7 +8,7 @@ defmodule TrendTracker.Worker do
     balance: 10000,
     exchange: "okex",
     market: "swap",
-    symbols: ["BTC_CQ"],
+    symbols: ["EOS-USD-SWAP"],
     auth: ["passphrase", "access_key", "secret_key"],
     source: Siegfried,
     trend: [module: "Macd", period: "1week"],
@@ -70,7 +70,8 @@ defmodule TrendTracker.Worker do
       bankroll_opts = [name: bankroll_name, systems: systems, klines: opts[:symbols_klines][symbol][:bankroll]] ++ opts[:bankroll] ++ public_opts
       {:ok, _bankroll_pid} = start_child(pid, {Turtle, bankroll_opts})
       trader_opts = [name: trader_name, systems: systems] ++ opts[:trader] ++ public_opts
-      {:ok, _trader_pid} = start_child(pid, {Trader, trader_opts})
+      # {:ok, _trader_pid} = start_child(pid, {Trader, trader_opts})
+      Trader.start_link(trader_opts)
     end)
   end
 

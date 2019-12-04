@@ -2,8 +2,9 @@ defmodule TrendTracker.Trader do
   use GenStage
 
   alias TrendTracker.Helper
-  alias TrendTracker.Exchange.Huobi.Client, as: HuobiClient
   alias TrendTracker.Backtest.Client, as: BacktestClient
+  alias TrendTracker.Exchange.Huobi.Client, as: HuobiClient
+  alias TrendTracker.Exchange.Okex.SwapClient, as: OkexSwapClient
   alias TrendTracker.Bankroll.Position
 
   require Logger
@@ -11,6 +12,7 @@ defmodule TrendTracker.Trader do
   def start_link(opts \\ []) do
     state = %{
       exchange: opts[:exchange],
+      market: opts[:market],
       symbol: opts[:symbol],
       systems: opts[:systems],
       backtest: opts[:backtest],
@@ -70,7 +72,7 @@ defmodule TrendTracker.Trader do
           end
 
           balance = GenServer.call(state[:systems][:client], :balance)
-          Helper.file_log("backtest", "#{trade["datetime"]} 资金总值：#{Helper.float_to_binary(balance, 8)}")
+          Helper.file_log("backtest.log", "#{trade["datetime"]} 资金总值：#{Helper.float_to_binary(balance, 8)}")
         end
 
       _ -> nil
@@ -101,24 +103,25 @@ defmodule TrendTracker.Trader do
   # 根据信号，开仓或者平仓
   defp submit_order({_system, {:wait, _, _}}, _state), do: nil
   defp submit_order({_, {action, trend, _}} = signal, %{backtest: true} = state) do
-    client_name = state[:systems][:client]
     symbol = state[:symbol]
     {^symbol, position} = GenServer.call(state[:systems][:bankroll], :position)
 
-    client = cond do
-      state[:backtest] -> BacktestClient
-      state[:exchange] == "huobi" -> HuobiClient
-    end
+    client_name = state[:systems][:client]
+    client_module = client_module(state[:exchange], state[:market], state[:backtest])
 
     case action do
       :open ->
-        {:ok, order} = client.submit_order(client_name, signal, position.volume, state)
+        {:ok, order} = apply(client_module, :submit_order, [client_name, signal, position.volume, state])
         GenServer.call(state[:systems][:bankroll], {:open, trend, order["price"], order["volume"]})
 
       :close ->
-        {:ok, order} = client.submit_order(client_name, signal, Position.volume(position), state)
+        {:ok, order} = apply(client_module, :submit_order, [client_name, signal, Position.volume(position), state])
         GenServer.call(state[:systems][:bankroll], :close)
         GenServer.call(state[:systems][:client], {:profit, state[:symbol], order["filled_cash_amount"]})
     end
   end
+
+  defp client_module(_, _, true), do: BacktestClient
+  defp client_module("okex", "swap", _), do: OkexSwapClient
+  defp client_module("huobi", _, _), do: HuobiClient
 end
