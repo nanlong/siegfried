@@ -7,7 +7,7 @@ defmodule TrendTracker.Master do
     exchange: "okex",
     market: "swap",
     symbols: ~w(BTC-USD-SWAP ETH-USD-SWAP EOS-USD-SWAP BCH-USD-SWAP),
-    auth: ["passphrase", "access_key", "secret_key"],
+    auth: {"passphrase", "access_key", "secret_key"},
     source: Siegfried,
     trend: [module: "Macd", period: "1week"],
     breakout: [module: "BollingerBands", period: "1day"],
