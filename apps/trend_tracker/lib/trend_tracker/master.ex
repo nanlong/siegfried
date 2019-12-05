@@ -6,7 +6,7 @@ defmodule TrendTracker.Master do
     balance: 10000,
     exchange: "okex",
     market: "swap",
-    symbols: ["EOS-USD-SWAP"],
+    symbols: ~w(BTC-USD-SWAP ETH-USD-SWAP EOS-USD-SWAP BCH-USD-SWAP),
     auth: ["passphrase", "access_key", "secret_key"],
     source: Siegfried,
     trend: [module: "Macd", period: "1week"],
@@ -72,6 +72,14 @@ defmodule TrendTracker.Master do
 
     if worker_pid do
       Worker.kline(worker_pid, system)
+    end
+  end
+
+  def woker_which_children(name) do
+    worker_pid = get_worker(name)
+
+    if worker_pid do
+      DynamicSupervisor.which_children(worker_pid)
     end
   end
 

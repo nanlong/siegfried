@@ -52,6 +52,22 @@ config :siegfried_web, SiegfriedWeb.Endpoint,
 # Do not print debug messages in production
 config :logger, level: :info
 
+# Huobi config
+config :trend_tracker, :huobi,
+  spot_api: "https://api.huobi.pro",
+  contract_api: "https://api.hbdm.com",
+  spot_ws: "wss://api.huobi.pro/ws",
+  spot_auth_ws: "wss://api.huobi.pro/ws/v1",
+  contract_ws: "wss://www.hbdm.com/ws",
+  contract_auth_ws: "wss://api.hbdm.com/notification",
+  contract_symbols: ~w(BTC_CQ ETH_CQ EOS_CQ BCH_CQ LTC_CQ)
+
+# Okex config
+config :trend_tracker, :okex,
+  api: "https://www.okex.com",
+  ws: "wss://real.okex.com:8443/ws/v3",
+  contract_symbols: ~w(BTC-USD-SWAP ETH-USD-SWAP EOS-USD-SWAP BCH-USD-SWAP)
+
 # Finally import the config/prod.secret.exs which loads secrets
 # and configuration from environment variables.
 import_config "prod.secret.exs"

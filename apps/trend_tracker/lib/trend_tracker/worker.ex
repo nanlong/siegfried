@@ -46,6 +46,8 @@ defmodule TrendTracker.Worker do
   开始
   """
   def start(pid, opts) do
+    if opts[:source], do: apply(opts[:source], :set_cache, [opts[:title], opts])
+
     client_name = Helper.system_name("client", Keyword.take(opts, [:title, :exchange, :backtest]))
     client_module = client_module(opts[:exchange], opts[:market], opts[:backtest])
     {:ok, _client_pid} = start_child(pid, {client_module, [name: client_name] ++ Keyword.take(opts, [:balance, :symbols, :auth, :source])})

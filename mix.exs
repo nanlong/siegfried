@@ -5,7 +5,17 @@ defmodule Siegfried.Umbrella.MixProject do
     [
       apps_path: "apps",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      releases: [
+        siegfried: [
+          version: auto_version(),
+          applications: [
+            siegfried: :permanent,
+            siegfried_web: :permanent,
+            trend_tracker: :permanent,
+          ]
+        ]
+      ]
     ]
   end
 
@@ -23,5 +33,13 @@ defmodule Siegfried.Umbrella.MixProject do
   # and cannot be accessed from applications inside the apps folder
   defp deps do
     []
+  end
+
+  defp auto_version do
+    time = Regex.named_captures(~r/^(?<year>[\d]+)-(?<day>[\d|-]+)\s(?<sec>[\d|:]+)\./, to_string(DateTime.utc_now()))
+    major = time["year"] |> String.slice(2..3)
+    minor = time["day"] |> String.replace("-", "")
+    patch = time["sec"] |> String.replace(":", "")
+    "1" <> major <> ".2" <> minor <> ".3" <> patch
   end
 end

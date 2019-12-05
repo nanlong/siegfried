@@ -6,13 +6,15 @@ defmodule Siegfried do
   alias TrendTracker.Exchange.Okex.History, as: OkexHistory
 
 
-  def get_cache(name, default) do
+  def get_cache(name, default \\ nil) do
     key = to_string(name)
 
     case Siegfried.TrendTracker.get_cache(key) do
       nil ->
-        {:ok, _} = Siegfried.TrendTracker.set_cache(key, default)
-        default
+        if default do
+          {:ok, _} = Siegfried.TrendTracker.set_cache(key, default)
+          default
+        end
 
       value -> value
     end

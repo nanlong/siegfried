@@ -4,7 +4,7 @@ defmodule Siegfried.Repo.Migrations.CreateCaches do
   def change do
     create table(:caches) do
       add :key, :string
-      add :value, :string
+      add :value, :text
 
       timestamps()
     end
