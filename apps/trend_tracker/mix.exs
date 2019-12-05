@@ -32,6 +32,7 @@ defmodule TrendTracker.MixProject do
       {:httpoison, "~> 1.6"},
       {:websockex, "~> 0.4.2"},
       {:gen_stage, "~> 0.14.3"},
+      {:con_cache, "~> 0.13"},
     ]
   end
 end

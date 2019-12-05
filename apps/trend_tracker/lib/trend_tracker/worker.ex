@@ -100,7 +100,7 @@ defmodule TrendTracker.Worker do
   @doc """
   k线
   """
-  def kline(pid), do: Map.new([:trend, :breakout, :bankroll], &({&1, kline(pid, &1)}))
+  def kline(pid, nil), do: Map.new([:trend, :breakout, :bankroll], &({&1, kline(pid, &1)}))
   def kline(pid, :trend), do: system_data(pid, trend_modules(), :klines)
   def kline(pid, :breakout), do: system_data(pid, breakout_modules(), :klines)
   def kline(pid, :bankroll), do: system_data(pid, Turtle, :klines)

@@ -9,6 +9,8 @@ defmodule TrendTracker.Application do
     children = [
       # Starts a worker by calling: TrendTracker.Worker.start_link(arg)
       # {TrendTracker.Worker, arg}
+      {ConCache, [name: :trend_tracker, ttl_check_interval: false]},
+      {TrendTracker.Master, []},
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
