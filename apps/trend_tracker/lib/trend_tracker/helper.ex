@@ -54,6 +54,10 @@ defmodule TrendTracker.Helper do
     :second |> ts() |> transform_timestamp()
   end
 
+  def utc_now do
+    DateTime.utc_now() |> DateTime.to_string()
+  end
+
   def ts(unit \\ :millisecond) do
     :os.system_time(unit)
   end
@@ -100,7 +104,7 @@ defmodule TrendTracker.Helper do
     :ok = File.mkdir_p(path)
 
     File.open("#{path}/#{filename}", [:unicode, :append], fn file ->
-      IO.write(file, "#{transform_timestamp(:os.system_time(:second))} #{message}\n")
+      IO.write(file, "#{utc_now()} #{message}\n")
     end)
   end
 

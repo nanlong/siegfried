@@ -91,7 +91,7 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
     # 初始化订阅时间，用于检查未收到消息的时间间隔
     state = if frame["op"] == "subscribe" do
       Enum.reduce(frame["args"], state, fn topic, state ->
-        topic_data = %{topic => now()}
+      topic_data = %{topic => utc_now()}
         %{state | sub_topics:  Map.merge(state[:sub_topics], topic_data)}
       end)
     else
@@ -150,7 +150,7 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
           topic = "#{table}:#{item["instrument_id"]}"
 
           if Map.has_key?(state[:sub_topics], topic) do
-            topic_data = %{topic => now()}
+            topic_data = %{topic => utc_now()}
             %{state | sub_topics:  Map.merge(state[:sub_topics], topic_data)}
           else
             state
