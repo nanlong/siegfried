@@ -50,6 +50,10 @@ defmodule TrendTracker.Helper do
     |> String.to_atom()
   end
 
+  def now do
+    :second |> ts() |> transform_timestamp()
+  end
+
   def ts(unit \\ :millisecond) do
     :os.system_time(unit)
   end

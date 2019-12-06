@@ -4,7 +4,7 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
   ## Examples
 
     iex> url = "wss://real.okex.com:8443/ws/v3"
-    iex> {:ok, pid} = OkexWebSocket.start_link(url: url, passphrase: "passphrase", access_key: "access_key", secret_key_key: "secret_key_key")
+    iex> {:ok, pid} = OkexWebSocket.start_link(url: url, passphrase: "passphrase", access_key: "access_key", secret_key_key: "secret_key")
 
     iex> OkexWebSocket.push(pid, "ping", fn msg -> Process.send_after(self(), :ping, 5000) end)
     iex> OkexWebSocket.push(pid, %{op: "subscribe", args: ["swap/price_range:BTC-USD-SWAP"]}, fn msg -> IO.inspect(msg) end)
@@ -23,7 +23,6 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
       passphrase: opts[:passphrase],
       access_key: opts[:access_key],
       secret_key_key: opts[:secret_key_key],
-      catch_binary: opts[:catch_binary],
       on_connect: opts[:on_connect],
       bindings: [],
       sub_topics: %{},
@@ -69,6 +68,10 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
     WebSockex.cast(pid, {:on_message, topic, callback})
   end
 
+  def handle_info(:ping, state) do
+    {:reply, {:text, "ping"}, state}
+  end
+
   def handle_cast({:push, frame, callback}, state) when is_map(frame) do
     # 将map的key全部改成string类型
     frame = for {k, v} <- frame, into: %{}, do: {to_string(k), v}
@@ -88,7 +91,7 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
     # 初始化订阅时间，用于检查未收到消息的时间间隔
     state = if frame["op"] == "subscribe" do
       Enum.reduce(frame["args"], state, fn topic, state ->
-        topic_data = %{topic => ts()}
+        topic_data = %{topic => now()}
         %{state | sub_topics:  Map.merge(state[:sub_topics], topic_data)}
       end)
     else
@@ -109,14 +112,15 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
   end
 
   def handle_cast(:close, state) do
+    message = "Okex websocket closed \nstate: #{inspect(state)}"
+    file_log("okex.websocket.error.log", message)
     {:close, state}
   end
-  def handle_cast({:close, code, reason}, state) do
-    {:close, {code, reason}, state}
-  end
 
-  def handle_info(:ping, state) do
-    {:reply, {:text, "ping"}, state}
+  def handle_cast({:close, code, reason}, state) do
+    message = "Okex websocket closed \ncode: #{code} \nreason: #{inspect(reason)} \nstate: #{inspect(state)}"
+    file_log("okex.websocket.error.log", message)
+    {:close, {code, reason}, state}
   end
 
   def handle_disconnect(reason, state) do
@@ -146,7 +150,7 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
           topic = "#{table}:#{item["instrument_id"]}"
 
           if Map.has_key?(state[:sub_topics], topic) do
-            topic_data = %{topic => ts()}
+            topic_data = %{topic => now()}
             %{state | sub_topics:  Map.merge(state[:sub_topics], topic_data)}
           else
             state
