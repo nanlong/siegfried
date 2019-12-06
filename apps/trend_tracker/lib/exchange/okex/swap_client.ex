@@ -75,6 +75,15 @@ defmodule TrendTracker.Exchange.Okex.SwapClient do
       default
     end
 
+    message = """
+    Okex 永续合约趋势跟踪系统启动
+    币币账户可用 #{spot_account["available"]} USDT
+
+    资金配额：#{state[:balance]} USDT
+    交易对：#{inspect(state[:symbols])}
+    """
+    TrendTracker.Robot.DingDing.send(message)
+
     {:ok, state}
   end
 
@@ -146,9 +155,8 @@ defmodule TrendTracker.Exchange.Okex.SwapClient do
 
     # 统计盈利情况
     filled_cash_amount = to_float(spot_account_after["available"]) - to_float(spot_account["available"])
-    message = "#{opts[:symbol]} #{direction(system, :close, trend)}，预估价格：#{price}，合约张数：#{volume}"
+    message = "#{opts[:symbol]} #{direction(system, :close, trend)}，预估价格：#{price}，合约张数：#{volume}。实际#{if filled_cash_amount > 0, do: "盈利", else: "亏损"}: #{filled_cash_amount} USDT"
     TrendTracker.Robot.DingDing.send(message)
-    TrendTracker.Robot.DingDing.send("#{if filled_cash_amount > 0, do: "盈利", else: "亏损"}: #{filled_cash_amount} USDT")
     file_log("okex.position.log", message)
 
     {:reply, %{"filled_cash_amount" => filled_cash_amount}, state}

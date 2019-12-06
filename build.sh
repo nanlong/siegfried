@@ -28,8 +28,5 @@ MIX_ENV=prod mix release
 MIX_ENV=prod mix ecto.create
 MIX_ENV=prod mix ecto.migrate
 
-# Stop application
-./_build/prod/rel/siegfried/bin/siegfried stop
-
 # Daemon application
 ./_build/prod/rel/siegfried/bin/siegfried daemon

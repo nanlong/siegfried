@@ -37,12 +37,16 @@ defmodule TrendTracker.Backtest.Client do
   end
 
   def handle_call({system, :open, trend, trade, volume, opts}, _from, state) do
-    file_log("backtest.log", "#{String.slice(trade["datetime"], 0..24)} #{opts[:symbol]} #{direction(system, :open, trend)}，价格：#{format(trade["price"], 8)}，合约张数：#{format(volume)}")
+    message = "#{String.slice(trade["datetime"], 0..24)} #{opts[:symbol]} #{direction(system, :open, trend)}，价格：#{format(trade["price"], 8)}，合约张数：#{format(volume)}（模拟）"
+    TrendTracker.Robot.DingDing.send(message)
+    file_log("backtest.log", message)
     {:reply, %{"price" => trade["price"], "volume" => volume}, state}
   end
 
   def handle_call({system, :close, trend, trade, volume, opts}, _from, state) do
-    file_log("backtest.log", "#{String.slice(trade["datetime"], 0..24)} #{opts[:symbol]} #{direction(system, :close, trend)}，价格：#{format(trade["price"], 8)}，合约张数：#{format(volume)}")
+    message = "#{String.slice(trade["datetime"], 0..24)} #{opts[:symbol]} #{direction(system, :close, trend)}，价格：#{format(trade["price"], 8)}，合约张数：#{format(volume)}（模拟）"
+    TrendTracker.Robot.DingDing.send(message)
+    file_log("backtest.log", message)
     balance = state[:symbols_balance][opts[:symbol]]
     position = opts[:position]
     contract_size = contract_size(opts[:symbol])
@@ -61,7 +65,9 @@ defmodule TrendTracker.Backtest.Client do
 
     total_balance = state[:balance]
     current_balance = total_balance + diff
-    file_log("backtest.log", "#{opts[:symbol]} 盈利情况，原有资金：#{format(total_balance, 2)}，当前资金：#{format(current_balance, 2)}，变化：#{if diff >= 0, do: "+"}#{format(diff, 2)} #{if diff >= 0, do: "+"}#{format(diff / total_balance * 100, 2)}%")
+    message = "#{opts[:symbol]} 盈利情况，原有资金：#{format(total_balance, 2)}，当前资金：#{format(current_balance, 2)}，变化：#{if diff >= 0, do: "+"}#{format(diff, 2)} #{if diff >= 0, do: "+"}#{format(diff / total_balance * 100, 2)}%（模拟）"
+    TrendTracker.Robot.DingDing.send(message)
+    file_log("backtest.log", message)
 
     {:reply, %{"filled_cash_amount" => filled_cash_amount}, state}
   end
