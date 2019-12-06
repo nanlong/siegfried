@@ -113,24 +113,28 @@ defmodule TrendTracker.Exchange.Okex.WebSocket do
 
   def handle_cast(:close, state) do
     message = "Okex websocket closed \nstate: #{inspect(state)}"
+    TrendTracker.Robot.DingDing.send(message)
     file_log("okex.websocket.error.log", message)
     {:close, state}
   end
 
   def handle_cast({:close, code, reason}, state) do
     message = "Okex websocket closed \ncode: #{code} \nreason: #{inspect(reason)} \nstate: #{inspect(state)}"
+    TrendTracker.Robot.DingDing.send(message)
     file_log("okex.websocket.error.log", message)
     {:close, {code, reason}, state}
   end
 
   def handle_disconnect(reason, state) do
     message = "Okex websocket reconnect \nreason: #{inspect(reason)} \nstate: #{inspect(state)}"
+    TrendTracker.Robot.DingDing.send(message)
     file_log("okex.websocket.error.log", message)
     {:reconnect, state}
   end
 
   def handle_terminate(reason, state) do
     message = "Okex websocket exit normal \nreason: #{inspect(reason)} \nstate: #{inspect(state)}"
+    TrendTracker.Robot.DingDing.send(message)
     file_log("okex.websocket.error.log", message)
     exit(:normal)
   end

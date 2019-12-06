@@ -121,7 +121,9 @@ defmodule TrendTracker.Exchange.Okex.SwapClient do
     end
 
     {:ok, order} = SwapAPI.open_position(state[:service], currency, trend, to_string(volume))
-    file_log("okex.position.log", "#{opts[:symbol]} #{direction(system, :open, trend)}，价格：#{order["price_avg"]}，合约张数：#{order["filled_qty"]}")
+    message = "#{opts[:symbol]} #{direction(system, :open, trend)}，价格：#{order["price_avg"]}，合约张数：#{order["filled_qty"]}"
+    TrendTracker.Robot.DingDing.send(message)
+    file_log("okex.position.log", message)
     {:reply, %{"price" => to_float(order["price_avg"]), "volume" => to_int(order["filled_qty"]), "filled_cash_amount" => 0}, state}
   end
 
@@ -144,7 +146,11 @@ defmodule TrendTracker.Exchange.Okex.SwapClient do
 
     # 统计盈利情况
     filled_cash_amount = to_float(spot_account_after["available"]) - to_float(spot_account["available"])
-    file_log("okex.position.log", "#{opts[:symbol]} #{direction(system, :close, trend)}，预估价格：#{price}，合约张数：#{volume}")
+    message = "#{opts[:symbol]} #{direction(system, :close, trend)}，预估价格：#{price}，合约张数：#{volume}"
+    TrendTracker.Robot.DingDing.send(message)
+    TrendTracker.Robot.DingDing.send("#{if filled_cash_amount > 0, do: "盈利", else: "亏损"}: #{filled_cash_amount} USDT")
+    file_log("okex.position.log", message)
+
     {:reply, %{"filled_cash_amount" => filled_cash_amount}, state}
   end
 
