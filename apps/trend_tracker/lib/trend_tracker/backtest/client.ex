@@ -15,6 +15,15 @@ defmodule TrendTracker.Backtest.Client do
 
   def init(state) do
     symbols_balance = Map.new(state[:symbols], fn symbol -> {symbol, state[:balance] / length(state[:symbols])} end)
+
+    message = """
+    趋势跟踪系统启动（模拟）
+
+    资金配额：#{state[:balance]} USDT
+    交易对：#{inspect(state[:symbols])}
+    """
+    TrendTracker.Robot.DingDing.send(message)
+
     {:ok, Map.merge(state, %{symbols_balance: symbols_balance})}
   end
 
