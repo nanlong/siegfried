@@ -42,6 +42,7 @@ defmodule Siegfried.MixProject do
       {:jason, "~> 1.0"},
       {:timex, "~> 3.6"},
       {:con_cache, "~> 0.13"},
+      {:appsignal, "~> 1.0"},
     ]
   end
 

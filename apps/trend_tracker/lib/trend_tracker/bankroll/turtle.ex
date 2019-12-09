@@ -41,7 +41,8 @@ defmodule TrendTracker.Bankroll.Turtle do
     default = Position.new(power, atr_ratio, atr_cost)
 
     position = if state[:source] do
-      apply(state[:source], :get_cache, [state[:name], default])
+      {_, position} = apply(state[:source], :get_cache, [state[:name], default])
+      position
     else
       default
     end

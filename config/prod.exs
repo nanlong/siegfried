@@ -68,6 +68,8 @@ config :trend_tracker, :okex,
   ws: "wss://real.okex.com:8443/ws/v3",
   contract_symbols: ~w(BTC-USD-SWAP ETH-USD-SWAP EOS-USD-SWAP BCH-USD-SWAP)
 
+config :appsignal, :config, active: true
+
 # Finally import the config/prod.secret.exs which loads secrets
 # and configuration from environment variables.
 import_config "prod.secret.exs"

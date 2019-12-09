@@ -95,3 +95,5 @@ config :trend_tracker, :okex,
   api: "https://www.okex.com",
   ws: "wss://real.okex.com:8443/ws/v3",
   contract_symbols: ["EOS-USD-SWAP"]
+
+config :appsignal, :config, active: true

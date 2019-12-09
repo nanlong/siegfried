@@ -13,6 +13,13 @@ defmodule Siegfried.Application do
       {ConCache, [name: :okex, ttl_check_interval: false]}
     ]
 
+    :telemetry.attach(
+      "appsignal-ecto",
+      [:hermes, :repo, :query],
+      &Appsignal.Ecto.handle_event/4,
+      nil
+    )
+
     Supervisor.start_link(children, strategy: :one_for_one, name: Siegfried.Supervisor)
   end
 end

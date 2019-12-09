@@ -13,10 +13,10 @@ defmodule Siegfried do
       nil ->
         if default do
           {:ok, _} = Siegfried.TrendTracker.set_cache(key, default)
-          default
+          {:no_cache, default}
         end
 
-      value -> value
+      value -> {:cached, value}
     end
   end
 

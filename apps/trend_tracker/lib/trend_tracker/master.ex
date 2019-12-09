@@ -38,7 +38,7 @@ defmodule TrendTracker.Master do
   end
 
   def start(name, source) do
-    opts = apply(source, :get_cache, [name])
+    {_, opts} = apply(source, :get_cache, [name])
     start(opts)
   end
 

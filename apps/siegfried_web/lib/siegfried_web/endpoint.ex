@@ -1,5 +1,6 @@
 defmodule SiegfriedWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :siegfried_web
+  use Appsignal.Phoenix
 
   socket "/socket", SiegfriedWeb.UserSocket,
     websocket: true,

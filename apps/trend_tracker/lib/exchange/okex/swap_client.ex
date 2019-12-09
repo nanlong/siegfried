@@ -70,19 +70,23 @@ defmodule TrendTracker.Exchange.Okex.SwapClient do
     })
 
     state = if state[:source] do
-      apply(state[:source], :get_cache, [state[:name], default])
+      case apply(state[:source], :get_cache, [state[:name], default]) do
+        {:no_cache, state} ->
+          message = """
+          Okex 永续合约趋势跟踪系统启动
+
+          跟踪币对：#{Enum.join(state[:symbols], "，")}
+          可用额度：#{spot_account["available"]} USDT
+          资金配额：#{state[:balance]} USDT
+          """
+          TrendTracker.Robot.DingDing.send(message)
+          state
+
+        {:cached, state} -> state
+      end
     else
       default
     end
-
-    message = """
-    Okex 永续合约趋势跟踪系统启动
-    币币账户可用 #{spot_account["available"]} USDT
-
-    资金配额：#{state[:balance]} USDT
-    交易对：#{inspect(state[:symbols])}
-    """
-    TrendTracker.Robot.DingDing.send(message)
 
     {:ok, state}
   end
@@ -110,13 +114,14 @@ defmodule TrendTracker.Exchange.Okex.SwapClient do
     {:reply, state, state}
   end
 
-  def handle_call({system, :open, trend, _price, volume, opts}, _from, state) do
-    instrument = state[:symbols_instruments][opts[:symbol]]["swap"]
-    currency = instrument["base_currency"]
+  def handle_call({system, :open, trend, price, volume, opts}, _from, state) do
+    spot_instrument = state[:symbols_instruments][opts[:symbol]]["spot"]
+    swap_instrument = state[:symbols_instruments][opts[:symbol]]["swap"]
+    currency = swap_instrument["base_currency"]
 
     state = if system == :breakout do
       # 开仓前准备
-      notional = transfer_to_swap(state[:service], state[:balance], currency, length(state[:symbols]))
+      notional = transfer_to_swap(state[:service], state[:balance], currency, price, to_float(spot_instrument["min_size"]))
       state = %{state | symbols_balance: %{state[:symbols_balance] | opts[:symbol] => notional}}
 
       if state[:source] do
@@ -166,20 +171,30 @@ defmodule TrendTracker.Exchange.Okex.SwapClient do
     GenServer.call(client_name, {from, action, trend, trade["price"], volume, state})
   end
 
-  defp transfer_to_swap(service, balance, currency, count) do
+  defp transfer_to_swap(service, balance, currency, price, min_size) do
     # 使用总资金5%
     notional = balance * 0.05
 
     # 购入现货
-    {:ok, _order} = SpotAPI.submit_market_order(service, currency, "buy", notional: to_string(notional))
+    if notional / price > min_size do
+      {:ok, _order} = SpotAPI.submit_market_order(service, currency, "buy", notional: to_string(notional))
+    else
+      message = "错误：尝试币币交易，当前分配资金 #{balance}，5% 的资金可允许买入量不足 #{min_size} #{currency}"
+      TrendTracker.Robot.DingDing.send(message)
+      raise(message)
+    end
 
     # 转入到永续合约账户
     {:ok, account} = SpotAPI.get_accounts(service, currency)
-    {:ok, _} = AccountAPI.transfer(service, currency, account["available"], 1, 9)
+    if to_float(account["available"]) > 0 do
+      {:ok, _} = AccountAPI.transfer(service, currency, account["available"], 1, 9)
+    end
 
     # 对冲
-    hedge_size = (balance / count / contract_size(currency)) |> to_int() |> to_string()
-    {:ok, _order} = SwapAPI.open_position(service, currency, :short, hedge_size)
+    hedge_size = to_int(notional / contract_size(currency))
+    if hedge_size > 0 do
+      {:ok, _} = SwapAPI.open_position(service, currency, :short, to_string(hedge_size))
+    end
 
     notional
   end

@@ -22,7 +22,12 @@ config :siegfried_web, SiegfriedWeb.Endpoint,
   url: [host: "localhost"],
   secret_key_base: "fNC8ZzUXNPtftt7CejxMktLT5rORmvi+4eGfFgGTxWiVo9DactCasYTJrshOFmos",
   render_errors: [view: SiegfriedWeb.ErrorView, accepts: ~w(html json)],
-  pubsub: [name: SiegfriedWeb.PubSub, adapter: Phoenix.PubSub.PG2]
+  pubsub: [name: SiegfriedWeb.PubSub, adapter: Phoenix.PubSub.PG2],
+  instrumenters: [Appsignal.Phoenix.Instrumenter]
+
+config :phoenix, :template_engines,
+  eex: Appsignal.Phoenix.Template.EExEngine,
+  exs: Appsignal.Phoenix.Template.ExsEngine
 
 # Configures Elixir's Logger
 config :logger, :console,
@@ -31,6 +36,8 @@ config :logger, :console,
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
+
+import_config "appsignal.exs"
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
