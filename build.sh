@@ -7,10 +7,6 @@
 # Rm _build
 rm -rf ./_build
 
-DATABASE_URL="ecto://postgres:postgres@localhost/siegfried_prod"
-SECRET_KEY_BASE="y50MEOMg0rA3xQqxo3A3f+/MmLOrPj2krBjK27WZfSX5HYQXSFCo/nplaPBl4lmr"
-PORT=9001
-
 # Get and compile
 mix deps.get --only prod
 MIX_ENV=prod mix compile
