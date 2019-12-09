@@ -58,7 +58,10 @@ defmodule TrendTracker.Exchange.Okex.Service do
         Process.sleep(trunc(speed_limit * 1000))
         request(pid, method, path, speed_limit, opts)
 
-      _ -> response
+      _ ->
+        message = response |> elem(1) |> inspect()
+        TrendTracker.Robot.DingDing.send("Okex Rest API: #{message}")
+        response
     end
   end
 

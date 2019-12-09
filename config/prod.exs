@@ -68,6 +68,9 @@ config :trend_tracker, :okex,
   ws: "wss://real.okex.com:8443/ws/v3",
   contract_symbols: ~w(BTC-USD-SWAP ETH-USD-SWAP EOS-USD-SWAP BCH-USD-SWAP)
 
+config :trend_tracker, :robot,
+  dingding: "https://oapi.dingtalk.com/robot/send?access_token=b9a187ce8a56665c0c6215233cc97bdd1b5c0ad8dd8c9e342a9c4416a9b219c9"
+
 config :appsignal, :config, active: true
 
 # Finally import the config/prod.secret.exs which loads secrets
