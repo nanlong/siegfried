@@ -53,7 +53,7 @@ config :siegfried_web, SiegfriedWeb.Endpoint,
 config :logger, level: :info
 
 # Huobi config
-config :trend_tracker, :huobi,
+config :strategy, :huobi,
   spot_api: "https://api.huobi.pro",
   contract_api: "https://api.hbdm.com",
   spot_ws: "wss://api.huobi.pro/ws",
@@ -63,12 +63,12 @@ config :trend_tracker, :huobi,
   contract_symbols: ~w(BTC_CQ ETH_CQ EOS_CQ BCH_CQ LTC_CQ)
 
 # Okex config
-config :trend_tracker, :okex,
+config :strategy, :okex,
   api: "https://www.okex.com",
   ws: "wss://real.okex.com:8443/ws/v3",
   contract_symbols: ~w(BTC-USD-SWAP ETH-USD-SWAP EOS-USD-SWAP BCH-USD-SWAP)
 
-config :trend_tracker, :robot,
+config :strategy, :robot,
   dingding: "https://oapi.dingtalk.com/robot/send?access_token=b9a187ce8a56665c0c6215233cc97bdd1b5c0ad8dd8c9e342a9c4416a9b219c9"
 
 config :appsignal, :config, active: true

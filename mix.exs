@@ -12,7 +12,7 @@ defmodule Siegfried.Umbrella.MixProject do
           applications: [
             siegfried: :permanent,
             siegfried_web: :permanent,
-            trend_tracker: :permanent,
+            strategy: :permanent,
           ]
         ]
       ]

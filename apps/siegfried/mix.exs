@@ -36,7 +36,7 @@ defmodule Siegfried.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:trend_tracker, in_umbrella: true},
+      {:strategy, in_umbrella: true},
       {:ecto_sql, "~> 3.1"},
       {:postgrex, ">= 0.0.0"},
       {:jason, "~> 1.0"},

@@ -8,7 +8,7 @@ defmodule Siegfried.Exchange do
   alias Siegfried.Repo
   alias Siegfried.Exchange.Kline
 
-  alias TrendTracker.Exchange.Helper, as: ExchangeHelper
+  alias Strategy.Exchange.Helper, as: ExchangeHelper
 
   def last_kline(exchange, symbol, period) do
     query = from k in Kline,
@@ -48,7 +48,7 @@ defmodule Siegfried.Exchange do
     klines = Repo.all(query)
 
     # 合约K线可能比较少，使用现货的K线数据
-    if String.contains?(symbol, "_") || String.contains?(symbol, "-") do
+    if String.contains?(symbol, "_") || String.contains?(symbol, "-") && period in ["1day", "1week"] do
       kline = List.first(klines)
       pattern = if String.contains?(symbol, "_"), do: "_", else: "-"
       currency = symbol |> String.split(pattern) |> List.first() |> String.downcase()

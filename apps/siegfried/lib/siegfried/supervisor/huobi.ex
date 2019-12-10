@@ -2,13 +2,13 @@ defmodule Siegfried.HuobiSupervisor do
   use Supervisor
 
   alias Siegfried.Exchange
-  alias TrendTracker.Helper, as: TrendTrackerHelper
-  alias TrendTracker.Exchange.Helper, as: ExchangeHelper
-  alias TrendTracker.Exchange.Huobi.WebSocket, as: HuobiWebSocket
-  alias TrendTracker.Exchange.Producer
-  alias TrendTracker.Exchange.Consumer
+  alias Strategy.Helper, as: StrategyHelper
+  alias Strategy.Exchange.Helper, as: ExchangeHelper
+  alias Strategy.Exchange.Huobi.WebSocket, as: HuobiWebSocket
+  alias Strategy.Exchange.Producer
+  alias Strategy.Exchange.Consumer
 
-  @config Application.fetch_env!(:trend_tracker, :huobi)
+  @config Application.fetch_env!(:strategy, :huobi)
 
   def start_link(_opts \\ []) do
     Supervisor.start_link(__MODULE__, :ok)
@@ -18,9 +18,9 @@ defmodule Siegfried.HuobiSupervisor do
     exchange = "huobi"
 
     children = Enum.map(@config[:contract_symbols], fn symbol ->
-      producer = TrendTrackerHelper.system_name("producer", exchange: exchange, symbol: symbol)
-      consumer = TrendTrackerHelper.system_name("consumer", exchange: exchange, symbol: symbol)
-      websocket = TrendTrackerHelper.system_name("websocket", exchange: exchange, symbol: symbol)
+      producer = StrategyHelper.system_name("producer", exchange: exchange, symbol: symbol)
+      consumer = StrategyHelper.system_name("consumer", exchange: exchange, symbol: symbol)
+      websocket = StrategyHelper.system_name("websocket", exchange: exchange, symbol: symbol)
 
       [
         Supervisor.child_spec({Producer, [name: producer]}, id: producer),
@@ -39,7 +39,7 @@ defmodule Siegfried.HuobiSupervisor do
             trade = List.last(response["tick"]["data"])
 
             if trade do
-              timestamp = TrendTrackerHelper.to_int(trade["ts"] / 1000)
+              timestamp = StrategyHelper.to_int(trade["ts"] / 1000)
               datetime = ExchangeHelper.timestamp_to_local(timestamp)
               data = %{"price" => trade["price"], "volume" => trade["amount"], "timestamp" => timestamp, "datetime" => datetime}
               item = %{"exchange" => exchange, "symbol" => symbol, "topic" => "trade", "data" => data}

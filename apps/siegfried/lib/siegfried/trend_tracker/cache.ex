@@ -1,4 +1,4 @@
-defmodule Siegfried.TrendTracker.Cache do
+defmodule Siegfried.Strategy.Cache do
   use Ecto.Schema
   import Ecto.Changeset
 

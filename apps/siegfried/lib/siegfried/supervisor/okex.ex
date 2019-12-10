@@ -2,14 +2,14 @@ defmodule Siegfried.OkexSupervisor do
   use Supervisor
 
   alias Siegfried.Exchange
-  alias TrendTracker.Exchange.Helper, as: ExchangeHelper
-  alias TrendTracker.Exchange.Okex.WebSocket, as: OkexWebSocket
-  alias TrendTracker.Exchange.Producer
-  alias TrendTracker.Exchange.Consumer
+  alias Strategy.Exchange.Helper, as: ExchangeHelper
+  alias Strategy.Exchange.Okex.WebSocket, as: OkexWebSocket
+  alias Strategy.Exchange.Producer
+  alias Strategy.Exchange.Consumer
 
-  import TrendTracker.Helper
+  import Strategy.Helper
 
-  @config Application.fetch_env!(:trend_tracker, :okex)
+  @config Application.fetch_env!(:strategy, :okex)
 
   def start_link(_opts \\ []) do
     Supervisor.start_link(__MODULE__, :ok)

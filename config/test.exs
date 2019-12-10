@@ -20,7 +20,7 @@ config :siegfried_web, SiegfriedWeb.Endpoint,
 config :logger, level: :warn
 
 # Huobi config
-config :trend_tracker, :huobi,
+config :strategy, :huobi,
   spot_api: "https://api.huobi.vn",
   contract_api: "https://api.hbdm.vn",
   spot_ws: "wss://api.huobi.vn/ws",

@@ -1,12 +1,12 @@
-defmodule Siegfried.TrendTracker do
+defmodule Siegfried.Strategy do
   @moduledoc """
-  The TrendTracker context.
+  The Strategy context.
   """
 
   import Ecto.Query, warn: false
   alias Siegfried.Repo
 
-  alias Siegfried.TrendTracker.Cache
+  alias Siegfried.Strategy.Cache
 
   def list_cache do
     Repo.all(Cache)

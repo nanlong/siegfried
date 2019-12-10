@@ -81,7 +81,7 @@ config :phoenix, :plug_init_mode, :runtime
 config :phoenix, :stacktrace_depth, 20
 
 # Huobi config
-config :trend_tracker, :huobi,
+config :strategy, :huobi,
   spot_api: "https://api.huobi.de.com",
   contract_api: "https://api.hbdm.io",
   spot_ws: "wss://api.huobi.de.com/ws",
@@ -91,7 +91,7 @@ config :trend_tracker, :huobi,
   contract_symbols: ["BTC_CQ"]
 
 # Okex config
-config :trend_tracker, :okex,
+config :strategy, :okex,
   api: "https://www.okex.com",
   ws: "wss://real.okex.com:8443/ws/v3",
   contract_symbols: ["EOS-USD-SWAP"]
