@@ -1,4 +1,4 @@
-defmodule Strategy.TrendTracker.Bankroll.Turtle do
+defmodule Strategy.TrendFollowing.Bankroll.Turtle do
   @moduledoc """
   资金管理海龟系统
 
@@ -17,7 +17,7 @@ defmodule Strategy.TrendTracker.Bankroll.Turtle do
 
   {:ok, pid} = Strategy.Bankroll.Turtle.start_link(exchange: "huobi", symbol: "BTC_CQ", period: "1day", source: Siegfried)
   """
-  use Strategy.TrendTracker.System
+  use Strategy.TrendFollowing.System
 
   def default do
     [period: 20, power: 0.5, atr_ratio: 0.01, atr_cost: 1]

@@ -10,7 +10,7 @@ defmodule Strategy.Application do
       # Starts a worker by calling: Strategy.Worker.start_link(arg)
       # {Strategy.Worker, arg}
       {ConCache, [name: :strategy, ttl_check_interval: false]},
-      {Strategy.TrendTracker.Master, []},
+      {Strategy.TrendFollowing.Master, []},
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

@@ -1,21 +1,5 @@
 # Strategy
 
-**TODO: Add description**
+## 趋势跟踪 (trend following)
 
-## Installation
-
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `trend_tracker` to your list of dependencies in `mix.exs`:
-
-```elixir
-def deps do
-  [
-    {:strategy, "~> 0.1.0"}
-  ]
-end
-```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/trend_tracker](https://hexdocs.pm/trend_tracker).
-
+## 网格交易 (grid trading)

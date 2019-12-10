@@ -1,8 +1,8 @@
-defmodule Strategy.TrendTracker.Breakout.KeltnerChannel do
+defmodule Strategy.TrendFollowing.Breakout.KeltnerChannel do
   @moduledoc """
   肯特钠通道
   """
-  use Strategy.TrendTracker.System
+  use Strategy.TrendFollowing.System
 
   def default do
     [period: 20, power: 2]

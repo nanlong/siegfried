@@ -1,9 +1,9 @@
-defmodule Strategy.TrendTracker.Bankroll.Position do
+defmodule Strategy.TrendFollowing.Bankroll.Position do
   @doc """
   仓位信息
   """
 
-  alias Strategy.TrendTracker.Bankroll.Order
+  alias Strategy.TrendFollowing.Bankroll.Order
 
   @typedoc "仓位状态"
   @type position_status :: :empty | :hold | :full

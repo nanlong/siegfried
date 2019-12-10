@@ -1,4 +1,4 @@
-defmodule Strategy.TrendTracker.Breakout.BollingerBands do
+defmodule Strategy.TrendFollowing.Breakout.BollingerBands do
   @moduledoc """
   布林带
 
@@ -16,7 +16,7 @@ defmodule Strategy.TrendTracker.Breakout.BollingerBands do
   BollingerBands.start_link(klines, period, opts)
   """
 
-  use Strategy.TrendTracker.System
+  use Strategy.TrendFollowing.System
 
   def default do
     [period: 20, power: 2]

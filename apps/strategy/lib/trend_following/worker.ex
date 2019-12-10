@@ -1,4 +1,4 @@
-defmodule Strategy.TrendTracker.Worker do
+defmodule Strategy.TrendFollowing.Worker do
   @moduledoc """
   huobi交易所，交割合约
   okex交易所，只允许交易永续合约
@@ -26,11 +26,11 @@ defmodule Strategy.TrendTracker.Worker do
   alias Strategy.Helper
   alias Strategy.Exchange.Okex.SwapClient, as: OkexSwapClient
   alias Strategy.Exchange.Huobi.Client, as: HuobiClient
-  alias Strategy.TrendTracker.Backtest.Client, as: BacktestClient
-  alias Strategy.TrendTracker.Trend.{Macd, Ema}
-  alias Strategy.TrendTracker.Breakout.{BollingerBands, KeltnerChannel, DonchainChanel}
-  alias Strategy.TrendTracker.Bankroll.Turtle
-  alias Strategy.TrendTracker.Trader
+  alias Strategy.TrendFollowing.Backtest.Client, as: BacktestClient
+  alias Strategy.TrendFollowing.Trend.{Macd, Ema}
+  alias Strategy.TrendFollowing.Breakout.{BollingerBands, KeltnerChannel, DonchainChanel}
+  alias Strategy.TrendFollowing.Bankroll.Turtle
+  alias Strategy.TrendFollowing.Trader
 
   require Logger
 

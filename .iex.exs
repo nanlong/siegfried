@@ -11,5 +11,5 @@ alias Strategy.Exchange.Okex.WebSocket, as: OkexWebSocket
 alias Strategy.Exchange.Okex.History, as: OkexHistory
 alias Strategy.Exchange.Okex.SwapClient, as: OkexSwapClient
 
-alias Strategy.TrendTracker.Master, as: TrendTrackerMaster
-alias Strategy.TrendTracker.Backtest, as: TrendTrackerBacktest
+alias Strategy.TrendFollowing.Master, as: TrendFollowingMaster
+alias Strategy.TrendFollowing.Backtest, as: TrendFollowingBacktest

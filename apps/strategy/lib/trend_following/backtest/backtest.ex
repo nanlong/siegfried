@@ -1,4 +1,4 @@
-defmodule Strategy.TrendTracker.Backtest do
+defmodule Strategy.TrendFollowing.Backtest do
   @moduledoc """
 
   opts = [
@@ -13,11 +13,11 @@ defmodule Strategy.TrendTracker.Backtest do
     source: Siegfried,
   ]
 
-  Strategy.TrendTracker.Backtest.start(opts)
+  Strategy.TrendFollowing.Backtest.start(opts)
   """
 
   alias Strategy.Helper
-  alias Strategy.TrendTracker.Worker
+  alias Strategy.TrendFollowing.Worker
   alias Strategy.Exchange.Producer
 
   require Logger

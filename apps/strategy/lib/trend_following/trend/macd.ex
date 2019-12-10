@@ -1,10 +1,10 @@
-defmodule Strategy.TrendTracker.Trend.Macd do
+defmodule Strategy.TrendFollowing.Trend.Macd do
   @moduledoc """
   MACD - 异同移动平均线趋势过滤器
 
   {:ok, pid} = Strategy.Trend.Macd.start_link(exchange: "huobi", symbol: "BTC_CQ", period: "1week", source: Siegfried)
   """
-  use Strategy.TrendTracker.System
+  use Strategy.TrendFollowing.System
 
   def default do
     [fast: 12, slow: 26, signal: 9]

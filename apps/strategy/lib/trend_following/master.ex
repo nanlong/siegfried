@@ -1,4 +1,4 @@
-defmodule Strategy.TrendTracker.Master do
+defmodule Strategy.TrendFollowing.Master do
   @moduledoc """
 
   opts = [
@@ -15,12 +15,12 @@ defmodule Strategy.TrendTracker.Master do
     trader: [],
   ]
 
-  Strategy.TrendTracker.Master.start(opts)
+  Strategy.TrendFollowing.Master.start(opts)
   """
 
   use DynamicSupervisor
 
-  alias Strategy.TrendTracker.Worker
+  alias Strategy.TrendFollowing.Worker
 
   def start_link(opts \\ []) do
     DynamicSupervisor.start_link(__MODULE__, opts, opts ++ [name: __MODULE__])

@@ -1,9 +1,9 @@
-defmodule Strategy.TrendTracker.Trend.Ema do
+defmodule Strategy.TrendFollowing.Trend.Ema do
   @moduledoc """
   指数移动平均趋势过滤器
   """
 
-  use Strategy.TrendTracker.System
+  use Strategy.TrendFollowing.System
 
   def default do
     [fast: 20, slow: 120]

@@ -1,4 +1,4 @@
-defmodule Strategy.TrendTracker.Backtest.Client do
+defmodule Strategy.TrendFollowing.Backtest.Client do
 
   use GenServer
 

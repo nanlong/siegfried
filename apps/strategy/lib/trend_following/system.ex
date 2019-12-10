@@ -1,10 +1,10 @@
-defmodule Strategy.TrendTracker.System do
+defmodule Strategy.TrendFollowing.System do
 
   defmacro __using__(_opts) do
     quote do
       use Strategy.System
 
-      alias Strategy.TrendTracker.Bankroll.Position
+      alias Strategy.TrendFollowing.Bankroll.Position
 
       @doc """
       信号

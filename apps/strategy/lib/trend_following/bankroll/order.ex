@@ -1,4 +1,4 @@
-defmodule Strategy.TrendTracker.Bankroll.Order do
+defmodule Strategy.TrendFollowing.Bankroll.Order do
   @moduledoc """
   持仓订单
   """

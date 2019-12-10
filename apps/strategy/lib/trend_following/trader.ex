@@ -1,11 +1,11 @@
-defmodule Strategy.TrendTracker.Trader do
+defmodule Strategy.TrendFollowing.Trader do
   use GenStage
 
   alias Strategy.Helper
   alias Strategy.Exchange.Huobi.Client, as: HuobiClient
   alias Strategy.Exchange.Okex.SwapClient, as: OkexSwapClient
-  alias Strategy.TrendTracker.Backtest.Client, as: BacktestClient
-  alias Strategy.TrendTracker.Bankroll.Position
+  alias Strategy.TrendFollowing.Backtest.Client, as: BacktestClient
+  alias Strategy.TrendFollowing.Bankroll.Position
 
   require Logger
 

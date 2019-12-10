@@ -1,8 +1,8 @@
-defmodule Strategy.TrendTracker.Breakout.DonchainChannel do
+defmodule Strategy.TrendFollowing.Breakout.DonchainChannel do
   @moduledoc """
   唐奇安通道
   """
-  use Strategy.TrendTracker.System
+  use Strategy.TrendFollowing.System
 
   def default do
     [fast: 10, slow: 20]
