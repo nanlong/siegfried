@@ -9,6 +9,8 @@ defmodule Strategy.Exchange.Okex.Service do
 
   use GenServer
 
+  alias Strategy.Robot.DingDing
+
   import Strategy.Helper
   import Strategy.Exchange.Okex.Helper
 
@@ -60,7 +62,7 @@ defmodule Strategy.Exchange.Okex.Service do
 
       _ ->
         message = response |> elem(1) |> inspect()
-        Strategy.Robot.DingDing.send("Okex Rest API: #{message}")
+        DingDing.send("Okex Rest API: #{message}")
         response
     end
   end

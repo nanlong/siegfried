@@ -9,6 +9,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
   """
   use GenServer
 
+  alias Strategy.Robot.DingDing
   alias Strategy.Exchange.Okex.Service, as: OkexService
   alias Strategy.Exchange.Okex.{AccountAPI, SpotAPI, SwapAPI}
 
@@ -79,7 +80,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
           可用额度：#{spot_account["available"]} USDT
           资金配额：#{state[:balance]} USDT
           """
-          Strategy.Robot.DingDing.send(message)
+          DingDing.send(message)
           state
 
         {:cached, state} -> state
@@ -136,7 +137,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
 
     {:ok, order} = SwapAPI.open_position(state[:service], currency, trend, to_string(volume))
     message = "#{opts[:symbol]} #{direction(system, :open, trend)}，价格：#{order["price_avg"]}，合约张数：#{order["filled_qty"]}"
-    Strategy.Robot.DingDing.send(message)
+    DingDing.send(message)
     file_log("okex.position.log", message)
     {:reply, %{"price" => to_float(order["price_avg"]), "volume" => to_int(order["filled_qty"]), "filled_cash_amount" => 0}, state}
   end
@@ -161,7 +162,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
     # 统计盈利情况
     filled_cash_amount = to_float(spot_account_after["available"]) - to_float(spot_account["available"])
     message = "#{opts[:symbol]} #{direction(system, :close, trend)}，预估价格：#{price}，合约张数：#{volume}。实际#{if filled_cash_amount > 0, do: "盈利", else: "亏损"}: #{filled_cash_amount} USDT"
-    Strategy.Robot.DingDing.send(message)
+    DingDing.send(message)
     file_log("okex.position.log", message)
 
     {:reply, %{"filled_cash_amount" => filled_cash_amount}, state}
@@ -180,7 +181,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
       {:ok, _order} = SpotAPI.submit_market_order(service, currency, "buy", notional: to_string(notional))
     else
       message = "错误：尝试币币交易，当前分配资金 #{balance}，5% 的资金可允许买入量不足 #{min_size} #{currency}"
-      Strategy.Robot.DingDing.send(message)
+      DingDing.send(message)
       raise(message)
     end
 
