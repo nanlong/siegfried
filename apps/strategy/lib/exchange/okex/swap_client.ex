@@ -65,7 +65,6 @@ defmodule Strategy.Exchange.Okex.SwapClient do
     if is_nil(spot_account) || to_float(spot_account["available"]) < state[:balance], do: raise("#{@fund_currency} 账户余额不足 #{state[:balance]}")
 
     default = Map.merge(state, %{
-      service: service,
       symbols_instruments: symbols_instruments,
       symbols_balance: Map.new(state[:symbols], fn symbol -> {symbol, 0} end)
     })
@@ -89,7 +88,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
       default
     end
 
-    {:ok, state}
+    {:ok, Map.merge(state, %{service: service})}
   end
 
   def handle_call(:balance, _from, state) do
