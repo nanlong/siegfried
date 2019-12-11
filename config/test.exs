@@ -28,3 +28,8 @@ config :strategy, :huobi,
   contract_ws: "wss://dm.huobi.vn/ws",
   contract_auth_ws: "wss://api.btcgateway.pro/notification",
   contract_symbols: []
+
+config :strategy, :okex,
+  api: "https://www.okex.com",
+  ws: "wss://real.okex.com:8443/ws/v3",
+  contract_symbols: ~w(BTC-USD-SWAP ETH-USD-SWAP EOS-USD-SWAP BCH-USD-SWAP)
