@@ -133,11 +133,12 @@ defmodule Strategy.Exchange.Okex.SwapAPI do
     contract_size = contract_size(currency)
 
     {price_avg, filled_qty} = if length(result) > 0 do
-      filled_qty = result |> Enum.map(fn order -> to_int(order["filled_qty"]) end) |> Enum.sum()
-      price_avg = contract_size * filled_qty / (result |> Enum.map(fn order -> contract_size * to_int(order["filled_qty"]) / to_float(order["price_avg"]) end) |> Enum.sum())
+      orders = result |> Enum.map(fn order -> Map.update!(order, "filled_qty", &to_int/1) end) |> Enum.filter(fn order -> order["filled_qty"] > 0 end)
+      filled_qty = orders |> Enum.map(fn order -> order["filled_qty"] end) |> Enum.sum()
+      price_avg = contract_size * filled_qty / (orders |> Enum.map(fn order -> contract_size * order["filled_qty"] / to_float(order["price_avg"]) end) |> Enum.sum())
       {price_avg, filled_qty}
     else
-      {nil, nil}
+      {0, 0}
     end
 
     {:ok, %{"instrument_id" => String.upcase("#{currency}-usd-swap"), "type" => type, "state" => "2", "filled_qty" => filled_qty, "price_avg" => price_avg}}

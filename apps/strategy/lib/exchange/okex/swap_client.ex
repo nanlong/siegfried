@@ -188,7 +188,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
 
     # 转入到永续合约账户
     {:ok, account} = SpotAPI.get_accounts(service, currency)
-    if to_float(account["available"]) > 0 do
+    if account && to_float(account["available"]) > 0 do
       {:ok, _} = AccountAPI.transfer(service, currency, account["available"], 1, 9)
     end
 
