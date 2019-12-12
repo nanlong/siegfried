@@ -22,9 +22,9 @@ defmodule Strategy.TrendFollowing.Trader do
 
   def init(state) do
     symbol = state[:symbol]
-    {^symbol, trend_period} = GenServer.call(state[:systems][:trend], :period)
-    {^symbol, breakout_period} = GenServer.call(state[:systems][:breakout], :period)
-    {^symbol, bankroll_period} = GenServer.call(state[:systems][:bankroll], :period)
+    {^symbol, trend_period} = GenServer.call(state[:systems][:trend], :period, :infinity)
+    {^symbol, breakout_period} = GenServer.call(state[:systems][:breakout], :period, :infinity)
+    {^symbol, bankroll_period} = GenServer.call(state[:systems][:bankroll], :period, :infinity)
 
     state = Map.merge(state, %{trend_period: trend_period, breakout_period: breakout_period, bankroll_period: bankroll_period})
 
@@ -63,15 +63,15 @@ defmodule Strategy.TrendFollowing.Trader do
         if state[:backtest] do
           Logger.info("#{state[:symbol]} 回测完毕")
           symbol = state[:symbol]
-          {^symbol, position} = GenServer.call(state[:systems][:bankroll], :position)
+          {^symbol, position} = GenServer.call(state[:systems][:bankroll], :position, :infinity)
 
           if position.status != :empty do
             {:ok, order} = BacktestClient.submit_order(state[:systems][:client], {:breakout, {:close, position.trend, trade}}, Position.volume(position), state)
-            GenServer.call(state[:systems][:bankroll], :close)
-            GenServer.call(state[:systems][:client], {:profit, state[:symbol], order["filled_cash_amount"]})
+            GenServer.call(state[:systems][:bankroll], :close, :infinity)
+            GenServer.call(state[:systems][:client], {:profit, state[:symbol], order["filled_cash_amount"]}, :infinity)
           end
 
-          balance = GenServer.call(state[:systems][:client], :balance)
+          balance = GenServer.call(state[:systems][:client], :balance, :infinity)
           Helper.file_log("backtest.log", "#{trade["datetime"]} 资金总值：#{Helper.float_to_binary(balance, 8)}")
         end
 
@@ -84,9 +84,9 @@ defmodule Strategy.TrendFollowing.Trader do
   # 根据持仓状态，获取系统信号
   defp system_signal(trade, state) do
     symbol = state[:symbol]
-    {^symbol, position} = GenServer.call(state[:systems][:bankroll], :position)
-    {^symbol, breakout_signal} = GenServer.call(state[:systems][:breakout], {:signal, trade})
-    {^symbol, bankroll_signal} = GenServer.call(state[:systems][:bankroll], {:signal, trade})
+    {^symbol, position} = GenServer.call(state[:systems][:bankroll], :position, :infinity)
+    {^symbol, breakout_signal} = GenServer.call(state[:systems][:breakout], {:signal, trade}, :infinity)
+    {^symbol, bankroll_signal} = GenServer.call(state[:systems][:bankroll], {:signal, trade}, :infinity)
 
     cond do
       # 止盈
@@ -104,7 +104,7 @@ defmodule Strategy.TrendFollowing.Trader do
   defp submit_order({_system, {:wait, _, _}}, _state), do: nil
   defp submit_order({_, {action, trend, _}} = signal, state) do
     symbol = state[:symbol]
-    {^symbol, position} = GenServer.call(state[:systems][:bankroll], :position)
+    {^symbol, position} = GenServer.call(state[:systems][:bankroll], :position, :infinity)
 
     client_name = state[:systems][:client]
     client_module = client_module(state[:exchange], state[:market], state[:backtest])
@@ -112,12 +112,12 @@ defmodule Strategy.TrendFollowing.Trader do
     case action do
       :open ->
         {:ok, order} = apply(client_module, :submit_order, [client_name, signal, position.volume, state])
-        GenServer.call(state[:systems][:bankroll], {:open, trend, order["price"], order["volume"]})
+        GenServer.call(state[:systems][:bankroll], {:open, trend, order["price"], order["volume"]}, :infinity)
 
       :close ->
         {:ok, order} = apply(client_module, :submit_order, [client_name, signal, Position.volume(position), state])
-        GenServer.call(state[:systems][:bankroll], :close)
-        GenServer.call(state[:systems][:client], {:profit, state[:symbol], order["filled_cash_amount"]})
+        GenServer.call(state[:systems][:bankroll], :close, :infinity)
+        GenServer.call(state[:systems][:client], {:profit, state[:symbol], order["filled_cash_amount"]}, :infinity)
     end
   end
 

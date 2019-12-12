@@ -25,7 +25,7 @@ defmodule Strategy.TrendFollowing.System do
       """
       def get_trend(state) do
         if state[:systems][:trend] do
-          {_symbol, trend} = GenServer.call(state[:systems][:trend], :trend)
+          {_symbol, trend} = GenServer.call(state[:systems][:trend], :trend, :infinity)
           trend
         end
       end
@@ -35,7 +35,7 @@ defmodule Strategy.TrendFollowing.System do
       """
       def get_position(state) do
         if state[:systems][:bankroll] do
-          {_symbol, position} = GenServer.call(state[:systems][:bankroll], :position)
+          {_symbol, position} = GenServer.call(state[:systems][:bankroll], :position, :infinity)
           position
         end
       end

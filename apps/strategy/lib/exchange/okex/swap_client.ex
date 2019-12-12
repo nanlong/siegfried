@@ -50,7 +50,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
     # 设定杠杆全仓模式50倍
     Enum.each(state[:symbols], fn instrument_id ->
       currency = symbols_instruments[instrument_id]["swap"]["base_currency"]
-      {:ok, %{"margin_mode" => "crossed"}} = SwapAPI.set_leverage(service, currency, "50", "3")
+      {:ok, _} = SwapAPI.set_leverage(service, currency, "50", "3")
     end)
 
     # 将资金转入币币账户
@@ -62,8 +62,6 @@ defmodule Strategy.Exchange.Okex.SwapClient do
 
     {:ok, spot_account} = SpotAPI.get_accounts(service, @fund_currency)
 
-    if is_nil(spot_account) || to_float(spot_account["available"]) < state[:balance], do: raise("#{@fund_currency} 账户余额不足 #{state[:balance]}")
-
     default = Map.merge(state, %{
       symbols_instruments: symbols_instruments,
       symbols_balance: Map.new(state[:symbols], fn symbol -> {symbol, 0} end)
@@ -72,6 +70,10 @@ defmodule Strategy.Exchange.Okex.SwapClient do
     state = if state[:source] do
       case apply(state[:source], :get_cache, [state[:name], default]) do
         {:no_cache, state} ->
+          if is_nil(spot_account) || to_float(spot_account["available"]) < state[:balance] do
+            raise("#{@fund_currency} 账户余额不足 #{state[:balance]}")
+          end
+
           message = """
           Okex 永续合约趋势跟踪系统启动
 
@@ -108,7 +110,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
 
     if state[:source] do
       key = to_string(state[:name])
-      {:ok, _} = apply(state[:source], :set_cache, [key, state])
+      {:ok, _} = apply(state[:source], :set_cache, [key, Map.delete(state, :service)])
     end
 
     {:reply, state, state}
@@ -126,7 +128,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
 
       if state[:source] do
         key = to_string(state[:name])
-        {:ok, _} = apply(state[:source], :set_cache, [key, state])
+        {:ok, _} = apply(state[:source], :set_cache, [key, Map.delete(state, :service)])
       end
 
       state
@@ -168,7 +170,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
   end
 
   def submit_order(client_name, {from, {action, trend, trade}}, volume, state) do
-    GenServer.call(client_name, {from, action, trend, trade["price"], volume, state})
+    {:ok, GenServer.call(client_name, {from, action, trend, trade["price"], volume, state}, :infinity)}
   end
 
   defp transfer_to_swap(service, balance, currency, price, min_size) do

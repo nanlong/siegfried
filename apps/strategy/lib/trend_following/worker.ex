@@ -53,7 +53,7 @@ defmodule Strategy.TrendFollowing.Worker do
     {:ok, _client_pid} = start_child(pid, {client_module, [name: client_name] ++ Keyword.take(opts, [:balance, :symbols, :auth, :source])})
 
     Enum.each(opts[:symbols], fn symbol ->
-      public_opts = Keyword.take(opts, [:title, :exchange, :source, :backtest]) ++ [symbol: symbol]
+      public_opts = Keyword.take(opts, [:title, :exchange, :market, :source, :backtest]) ++ [symbol: symbol]
 
       trend_name = Helper.system_name("trend", public_opts)
       breakout_name = Helper.system_name("breakout", public_opts)
@@ -124,7 +124,7 @@ defmodule Strategy.TrendFollowing.Worker do
   # 系统通信，获取相关模块的指定数据
   defp system_data(pid, modules, field) do
     pids = children(pid, modules)
-    Map.new(pids, fn child_pid -> GenServer.call(child_pid, field) end)
+    Map.new(pids, fn child_pid -> GenServer.call(child_pid, field, :infinity) end)
   end
 
   defp start_child(pid, child_spec) do

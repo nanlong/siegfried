@@ -23,6 +23,15 @@ defmodule Strategy.Exchange.Okex.SwapAPI do
   end
 
   @doc """
+  获取某个ticker信息
+  """
+  def get_ticker(service, currency) do
+    path = "/api/swap/v3/instruments/#{currency}-usd-swap/ticker"
+    speed_limit = 2 / 20
+    OkexService.request(service, :get, path, speed_limit)
+  end
+
+  @doc """
   获取合约标记价格
   """
   def get_mark_price(service, currency) do
@@ -134,12 +143,15 @@ defmodule Strategy.Exchange.Okex.SwapAPI do
     {:ok, %{"instrument_id" => String.upcase("#{currency}-usd-swap"), "type" => type, "state" => "2", "filled_qty" => filled_qty, "price_avg" => price_avg}}
   end
   defp do_submit_market_order(service, currency, type, size, result) do
-    case submit_order(service, currency, type, nil, size, match_price: "1") do
+    {:ok, ticker} = get_ticker(service, currency)
+    price = if type in ["1", "4"], do: ticker["best_ask"], else: ticker["best_bid"]
+
+    case submit_order(service, currency, type, price, size, order_type: "3") do
       {:error, %{"error_code" => "35014"}} ->
         do_submit_market_order(service, currency, type, size, result)
 
       {:ok, %{"order_id" => order_id}} ->
-        {:ok, order} = wait_order_filled(service, currency, order_id: order_id)
+        {:ok, order} = wait_order_finish(service, currency, order_id: order_id)
         size = size |> Decimal.sub(order["filled_qty"]) |> Decimal.to_string()
         do_submit_market_order(service, currency, type, size, [order] ++ result)
     end
@@ -173,11 +185,11 @@ defmodule Strategy.Exchange.Okex.SwapAPI do
   @doc """
   等待订单成交
   """
-  def wait_order_filled(service, currency, opts \\ []) do
+  def wait_order_finish(service, currency, opts \\ []) do
     Enum.reduce_while(1..60, {:error, nil}, fn _x, _acc ->
       {:ok, order_info} = get_order_info(service, currency, opts)
 
-      if order_info["state"] == "2" do
+      if order_info["state"] not in ["0", "3", "4"] do
         {:halt, {:ok, order_info}}
       else
         Process.sleep(1000)

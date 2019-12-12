@@ -5,6 +5,7 @@ defmodule Strategy.TrendFollowing.Backtest do
     title: "test",
     balance: 1500,
     exchange: "huobi",
+    market: "futures",
     symbols: ["btcusdt", "ethusdt", "eosusdt", "bchusdt"],
     trend: [module: "Macd", period: "1week"],
     breakout: [module: "BollingerBands", period: "1day"],
