@@ -42,10 +42,14 @@ defmodule Siegfried.Exchange do
       where: k.exchange == ^exchange,
       where: k.symbol == ^symbol,
       where: k.period == ^period,
-      where: k.timestamp >= ^from and k.timestamp <= ^to,
-      order_by: [asc: k.timestamp]
+      where: k.timestamp >= ^from and k.timestamp <= ^to
 
-    klines = Repo.all(query)
+    klines = if period in ["1min", "5min", "15min", "30min", "1hout"] do
+      count = trunc(ExchangeHelper.seconds("1day") / ExchangeHelper.seconds(period) * 2)
+      query |> order_by(desc: :timestamp) |> limit(^count) |> Repo.all() |> Enum.reverse()
+    else
+      query |> order_by(asc: :timestamp) |> Repo.all()
+    end
 
     # 合约K线可能比较少，使用现货的K线数据
     if String.contains?(symbol, "_") || String.contains?(symbol, "-") && period in ["1day", "1week"] do

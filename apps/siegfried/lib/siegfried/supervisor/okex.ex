@@ -34,7 +34,7 @@ defmodule Siegfried.OkexSupervisor do
         end]}, id: consumer),
         Supervisor.child_spec({OkexWebSocket, [name: websocket, url: @config[:ws], on_connect: fn pid ->
           trade_topic = "swap/trade:#{symbol}"
-          kline_topics = ["swap/candle86400s:#{symbol}", "swap/candle604800s:#{symbol}"]
+          kline_topics = ["swap/candle60s:#{symbol}", "swap/candle86400s:#{symbol}", "swap/candle604800s:#{symbol}"]
 
           Process.sleep(100)
 
@@ -54,6 +54,7 @@ defmodule Siegfried.OkexSupervisor do
 
           Enum.each(kline_topics, fn kline_topic ->
             period = cond do
+              String.starts_with?(kline_topic, "swap/candle60s") -> "1min"
               String.starts_with?(kline_topic, "swap/candle86400s") -> "1day"
               String.starts_with?(kline_topic, "swap/candle604800s") -> "1week"
             end
@@ -79,7 +80,7 @@ defmodule Siegfried.OkexSupervisor do
     end)
     |> List.flatten()
 
-    children = if Application.get_env(:siegfried, :env) in [:staging, :prod], do: children, else: []
+    children = if Application.get_env(:siegfried, :env) in [:dev, :prod], do: children, else: []
 
     Supervisor.init(children, strategy: :one_for_one)
   end

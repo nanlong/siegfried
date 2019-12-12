@@ -102,7 +102,7 @@ defmodule Strategy.TrendFollowing.Trader do
 
   # 根据信号，开仓或者平仓
   defp submit_order({_system, {:wait, _, _}}, _state), do: nil
-  defp submit_order({_, {action, trend, _}} = signal, %{backtest: true} = state) do
+  defp submit_order({_, {action, trend, _}} = signal, state) do
     symbol = state[:symbol]
     {^symbol, position} = GenServer.call(state[:systems][:bankroll], :position)
 
