@@ -162,7 +162,8 @@ defmodule Strategy.Exchange.Okex.SwapClient do
 
     # 统计盈利情况
     filled_cash_amount = to_float(spot_account_after["available"]) - to_float(spot_account["available"])
-    message = "#{opts[:symbol]} #{direction(system, :close, trend)}，预估价格：#{price}，合约张数：#{volume}。实际#{if filled_cash_amount > 0, do: "盈利", else: "亏损"}: #{filled_cash_amount} USDT"
+    profit = filled_cash_amount - state[:symbols_balance][opts[:symbol]]
+    message = "#{opts[:symbol]} #{direction(system, :close, trend)}，预估价格：#{price}，合约张数：#{volume}。实际#{if profit > 0, do: "盈利", else: "亏损"}: #{profit} USDT"
     DingDing.send(message)
     file_log("okex.position.log", message)
 
@@ -174,14 +175,14 @@ defmodule Strategy.Exchange.Okex.SwapClient do
   end
 
   defp transfer_to_swap(service, balance, currency, price, min_size) do
-    # 使用总资金5%
-    notional = balance * 0.05
+    # 使用总资金10%
+    notional = balance * 0.1
 
     # 购入现货
     if notional / price > min_size do
       {:ok, _order} = SpotAPI.submit_market_order(service, currency, "buy", notional: to_string(notional))
     else
-      message = "错误：尝试币币交易，当前分配资金 #{balance}，5% 的资金可允许买入量不足 #{min_size} #{currency}"
+      message = "错误：尝试币币交易，当前分配资金 #{balance}，10% 的资金可允许买入量不足 #{min_size} #{currency}"
       DingDing.send(message)
       raise(message)
     end
