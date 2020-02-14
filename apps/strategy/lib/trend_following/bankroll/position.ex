@@ -74,21 +74,36 @@ defmodule Strategy.TrendFollowing.Bankroll.Position do
     |> update(:volume, trunc(volume))
   end
 
+  def average_price(orders, contract_size) do
+    {average_price, _} = Enum.reduce(orders, {0, 0}, fn
+      x, {0, 0} ->
+        {x.price, x.volume}
+
+      x, {price, volume} ->
+        {contract_size * (volume + x.volume) / (contract_size * volume / price + contract_size * x.volume / x.price), volume + x.volume}
+    end)
+
+    average_price
+  end
+
   @doc """
   开仓
   """
-  def open(position, trend, price, volume) do
+  def open(position, trend, price, volume, contract_size) do
     order = Order.new(price, volume)
     orders = position.orders ++ [order]
     count = length(orders)
     status = if count >= position.max, do: :full, else: :hold
-    average_price = orders |> Enum.map(&(&1.price)) |> Enum.sum() |> Kernel./(count)
+
+    # 平均价格 = 合约面值 * ( 原持仓数 + 新开仓数 ) / ( 合约面值 * 原持仓数 / 原持仓均价 + 合约面值 * 新开仓数 / 新开仓成交均价 )
+    price = average_price(orders, contract_size)
+
     open_diff = position.atr * position.power
     close_diff = position.atr * position.max * position.power / count
 
     {open_price, close_price} = case position.trend || trend do
-      :long -> {order.price + open_diff, average_price - close_diff}
-      :short -> {order.price - open_diff, average_price + close_diff}
+      :long -> {order.price + open_diff, price - close_diff}
+      :short -> {order.price - open_diff, price + close_diff}
     end
 
     position

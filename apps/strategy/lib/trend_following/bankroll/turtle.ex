@@ -129,7 +129,8 @@ defmodule Strategy.TrendFollowing.Bankroll.Turtle do
   end
 
   def handle_call({:open, trend, price, volume}, _from, state) do
-    position = Position.open(state[:position], trend, price, volume)
+    contract_size = ExchangeHelper.contract_size(state[:symbol])
+    position = Position.open(state[:position], trend, price, volume, contract_size)
 
     if state[:source] do
       key = to_string(state[:name])
