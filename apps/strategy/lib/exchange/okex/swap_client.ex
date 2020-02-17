@@ -27,6 +27,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
       symbols: opts[:symbols],
       auth: opts[:auth],
       source: opts[:source],
+      dingding: opts[:dingding],
     }
     GenServer.start_link(__MODULE__, state, opts)
   end
@@ -81,7 +82,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
           可用额度：#{spot_account["available"]} USDT
           资金配额：#{state[:balance]} USDT
           """
-          DingDing.send(message)
+          DingDing.send(message, state[:dingding])
           state
 
         {:cached, state} -> state
@@ -138,7 +139,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
 
     {:ok, order} = SwapAPI.open_position(state[:service], currency, trend, to_string(volume))
     message = "#{opts[:symbol]} #{direction(system, :open, trend)}，价格：#{order["price_avg"]}，合约张数：#{order["filled_qty"]}"
-    DingDing.send(message)
+    DingDing.send(message, state[:dingding])
     file_log("okex.position.log", message)
     {:reply, %{"price" => to_float(order["price_avg"]), "volume" => to_int(order["filled_qty"]), "filled_cash_amount" => 0}, state}
   end
@@ -164,7 +165,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
     filled_cash_amount = to_float(spot_account_after["available"]) - to_float(spot_account["available"])
     profit = filled_cash_amount - state[:symbols_balance][opts[:symbol]]
     message = "#{opts[:symbol]} #{direction(system, :close, trend)}，预估价格：#{price}，合约张数：#{volume}。实际#{if profit > 0, do: "盈利", else: "亏损"}: #{profit} USDT"
-    DingDing.send(message)
+    DingDing.send(message, state[:dingding])
     file_log("okex.position.log", message)
 
     {:reply, %{"filled_cash_amount" => filled_cash_amount}, state}

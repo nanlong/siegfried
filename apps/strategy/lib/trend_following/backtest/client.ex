@@ -2,8 +2,6 @@ defmodule Strategy.TrendFollowing.Backtest.Client do
 
   use GenServer
 
-  alias Strategy.Robot.DingDing
-
   import Strategy.Helper, only: [file_log: 2, to_float: 2, float_to_binary: 2]
   import Strategy.Exchange.Helper, only: [contract_size: 1, futures_profit: 5]
 
@@ -24,7 +22,7 @@ defmodule Strategy.TrendFollowing.Backtest.Client do
     资金配额：#{state[:balance]} USDT
     交易对：#{inspect(state[:symbols])}
     """
-    DingDing.send(message)
+    file_log("backtest.log", message)
 
     {:ok, Map.merge(state, %{symbols_balance: symbols_balance})}
   end
@@ -49,14 +47,12 @@ defmodule Strategy.TrendFollowing.Backtest.Client do
 
   def handle_call({system, :open, trend, trade, volume, opts}, _from, state) do
     message = "#{String.slice(trade["datetime"], 0..24)} #{opts[:symbol]} #{direction(system, :open, trend)}，价格：#{format(trade["price"], 8)}，合约张数：#{format(volume)}（模拟）"
-    DingDing.send(message)
     file_log("backtest.log", message)
     {:reply, %{"price" => trade["price"], "volume" => volume}, state}
   end
 
   def handle_call({system, :close, trend, trade, volume, opts}, _from, state) do
     message = "#{String.slice(trade["datetime"], 0..24)} #{opts[:symbol]} #{direction(system, :close, trend)}，价格：#{format(trade["price"], 8)}，合约张数：#{format(volume)}（模拟）"
-    DingDing.send(message)
     file_log("backtest.log", message)
     balance = state[:symbols_balance][opts[:symbol]]
     position = opts[:position]
@@ -77,7 +73,6 @@ defmodule Strategy.TrendFollowing.Backtest.Client do
     total_balance = state[:balance]
     current_balance = total_balance + diff
     message = "#{opts[:symbol]} 盈利情况，原有资金：#{format(total_balance, 2)}，当前资金：#{format(current_balance, 2)}，变化：#{if diff >= 0, do: "+"}#{format(diff, 2)} #{if diff >= 0, do: "+"}#{format(diff / total_balance * 100, 2)}%（模拟）"
-    DingDing.send(message)
     file_log("backtest.log", message)
 
     {:reply, %{"filled_cash_amount" => filled_cash_amount}, state}

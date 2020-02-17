@@ -50,7 +50,7 @@ defmodule Strategy.TrendFollowing.Worker do
 
     client_name = Helper.system_name("client", Keyword.take(opts, [:title, :exchange, :backtest]))
     client_module = client_module(opts[:exchange], opts[:market], opts[:backtest])
-    {:ok, _client_pid} = start_child(pid, {client_module, [name: client_name] ++ Keyword.take(opts, [:balance, :symbols, :auth, :source])})
+    {:ok, _client_pid} = start_child(pid, {client_module, [name: client_name] ++ Keyword.take(opts, [:balance, :symbols, :auth, :source, :dingding])})
 
     Enum.each(opts[:symbols], fn symbol ->
       public_opts = Keyword.take(opts, [:title, :exchange, :market, :source, :backtest]) ++ [symbol: symbol]

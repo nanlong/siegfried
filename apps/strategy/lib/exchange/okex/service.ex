@@ -18,6 +18,8 @@ defmodule Strategy.Exchange.Okex.Service do
 
   @recv_timeout 10_000
 
+  @dingding Application.get_env(:strategy, :robot)[:dingding]
+
   def start_link(url, opts \\ []) do
     state = %{url: url, passphrase: opts[:passphrase], access_key: opts[:access_key], secret_key: opts[:secret_key]}
     GenServer.start_link(__MODULE__, state, opts)
@@ -62,7 +64,7 @@ defmodule Strategy.Exchange.Okex.Service do
 
       _ ->
         message = response |> elem(1) |> inspect()
-        DingDing.send("Okex Rest API: #{message}")
+        DingDing.send("Okex Rest API: #{message}", @dingding)
         response
     end
   end
