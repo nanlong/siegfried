@@ -54,14 +54,21 @@ defmodule Strategy.Exchange.Okex.SwapClient do
       {:ok, _} = SwapAPI.set_leverage(service, currency, "50", "3")
     end)
 
-    # 将资金转入币币账户
+    # 将币币账户资金转入到资金账户
+    {:ok, spot_account} = SpotAPI.get_accounts(service, @fund_currency)
+    {:ok, _} = AccountAPI.transfer(service, @fund_currency, spot_account["available"], 1, 6)
+
+    # 获取资金账户信息
     {:ok, account} = AccountAPI.get_wallet(service, @fund_currency)
 
-    if account && to_float(account["available"]) > 0 do
-      {:ok, %{"result" => true}} = AccountAPI.transfer(service, @fund_currency, account["available"], 6, 1)
+    # 如果资金账户余额不足，尝试将余币宝内的资金转入到资金账户
+    account = if account && to_float(account["available"]) < state[:balance] do
+      {:ok, _} = AccountAPI.transfer(service, @fund_currency, to_string(state[:balance] - to_float(account["available"])), 8, 6)
+      {:ok, account} = AccountAPI.get_wallet(service, @fund_currency)
+      account
+    else
+      account
     end
-
-    {:ok, spot_account} = SpotAPI.get_accounts(service, @fund_currency)
 
     default = Map.merge(state, %{
       symbols_instruments: symbols_instruments,
@@ -71,7 +78,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
     state = if state[:source] do
       case apply(state[:source], :get_cache, [state[:name], default]) do
         {:no_cache, state} ->
-          if is_nil(spot_account) || to_float(spot_account["available"]) < state[:balance] do
+          if is_nil(account) || to_float(account["available"]) < state[:balance] do
             raise("#{@fund_currency} 账户余额不足 #{state[:balance]}")
           end
 
@@ -79,7 +86,6 @@ defmodule Strategy.Exchange.Okex.SwapClient do
           Okex 永续合约趋势跟踪系统启动
 
           跟踪币对：#{Enum.join(state[:symbols], "，")}
-          可用额度：#{spot_account["available"]} USDT
           资金配额：#{state[:balance]} USDT
           """
           DingDing.send(message, state[:dingding])
@@ -89,6 +95,11 @@ defmodule Strategy.Exchange.Okex.SwapClient do
       end
     else
       default
+    end
+
+    # 将资金划入到余币宝
+    if account && to_float(account["available"]) > 0 do
+      {:ok, %{"result" => true}} = AccountAPI.transfer(service, @fund_currency, account["available"], 6, 8)
     end
 
     {:ok, Map.merge(state, %{service: service})}
@@ -161,6 +172,9 @@ defmodule Strategy.Exchange.Okex.SwapClient do
     {:ok, _} = SpotAPI.submit_market_order(state[:service], currency, "sell", size: swap_account["info"]["max_withdraw"])
     {:ok, spot_account_after} = SpotAPI.get_accounts(state[:service], @fund_currency)
 
+    # 卖出之后转入到余币宝
+    {:ok, %{"result" => true}} = AccountAPI.transfer(state[:service], @fund_currency, spot_account_after["available"], 1, 8)
+
     # 统计盈利情况
     filled_cash_amount = to_float(spot_account_after["available"]) - to_float(spot_account["available"])
     profit = filled_cash_amount - state[:symbols_balance][opts[:symbol]]
@@ -177,11 +191,14 @@ defmodule Strategy.Exchange.Okex.SwapClient do
 
   defp transfer_to_swap(service, balance, currency, price, min_size) do
     # 使用总资金10%
-    notional = balance * 0.1
+    available = balance * 0.1
+
+    # 将资金从余币宝转入到币币账户
+    {:ok, %{"result" => true}} = AccountAPI.transfer(service, @fund_currency, to_string(available), 8, 1)
 
     # 购入现货
-    if notional / price > min_size do
-      {:ok, _order} = SpotAPI.submit_market_order(service, currency, "buy", notional: to_string(notional))
+    if available / price > min_size do
+      {:ok, _order} = SpotAPI.submit_market_order(service, currency, "buy", notional: to_string(available))
     else
       message = "错误：尝试币币交易，当前分配资金 #{balance}，10% 的资金可允许买入量不足 #{min_size} #{currency}"
       DingDing.send(message)
@@ -195,12 +212,12 @@ defmodule Strategy.Exchange.Okex.SwapClient do
     end
 
     # 对冲
-    hedge_size = to_int(notional / contract_size(currency))
+    hedge_size = to_int(available / contract_size(currency))
     if hedge_size > 0 do
       {:ok, _} = SwapAPI.open_position(service, currency, :short, to_string(hedge_size))
     end
 
-    notional
+    available
   end
 
   defp direction(system, action, trend) do
