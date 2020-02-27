@@ -62,8 +62,9 @@ defmodule Strategy.Exchange.Okex.SwapClient do
     {:ok, account} = AccountAPI.get_wallet(service, @fund_currency)
 
     # 如果资金账户余额不足，尝试将余币宝内的资金转入到资金账户
-    account = if account && to_float(account["available"]) < state[:balance] do
-      {:ok, _} = AccountAPI.transfer(service, @fund_currency, to_string(state[:balance] - to_float(account["available"])), 8, 6)
+    account = if is_nil(account) || to_float(account["available"]) < state[:balance] do
+      amount = if account, do: state[:balance] - to_float(account["available"]), else: state[:balance]
+      {:ok, _} = AccountAPI.transfer(service, @fund_currency, to_string(amount), 8, 6)
       {:ok, account} = AccountAPI.get_wallet(service, @fund_currency)
       account
     else
