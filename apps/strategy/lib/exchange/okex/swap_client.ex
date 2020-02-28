@@ -152,7 +152,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
     {:ok, order} = SwapAPI.open_position(state[:service], currency, trend, to_string(volume))
     message = "#{opts[:symbol]} #{direction(system, :open, trend)}，价格：#{order["price_avg"]}，合约张数：#{order["filled_qty"]}"
     DingDing.send(message, state[:dingding])
-    file_log("okex.position.log", message)
+    file_log("#{state[:name]}.position.log", message)
     {:reply, %{"price" => to_float(order["price_avg"]), "volume" => to_int(order["filled_qty"]), "filled_cash_amount" => 0}, state}
   end
 
@@ -181,7 +181,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
     profit = filled_cash_amount - state[:symbols_balance][opts[:symbol]]
     message = "#{opts[:symbol]} #{direction(system, :close, trend)}，预估价格：#{price}，合约张数：#{volume}。实际#{if profit > 0, do: "盈利", else: "亏损"}: #{profit} USDT"
     DingDing.send(message, state[:dingding])
-    file_log("okex.position.log", message)
+    file_log("#{state[:name]}.position.log", message)
 
     {:reply, %{"filled_cash_amount" => filled_cash_amount}, state}
   end
