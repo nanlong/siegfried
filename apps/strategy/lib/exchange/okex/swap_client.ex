@@ -61,26 +61,29 @@ defmodule Strategy.Exchange.Okex.SwapClient do
     # 获取资金账户信息
     {:ok, account} = AccountAPI.get_wallet(service, @fund_currency)
 
-    # 如果资金账户余额不足，尝试将余币宝内的资金转入到资金账户
-    account = if is_nil(account) || to_float(account["available"]) < state[:balance] do
-      amount = if account, do: state[:balance] - to_float(account["available"]), else: state[:balance]
-      {:ok, _} = AccountAPI.transfer(service, @fund_currency, to_string(amount), 8, 6)
-      {:ok, account} = AccountAPI.get_wallet(service, @fund_currency)
-      account
-    else
-      account
-    end
-
     default = Map.merge(state, %{
       symbols_instruments: symbols_instruments,
       symbols_balance: Map.new(state[:symbols], fn symbol -> {symbol, 0} end)
     })
 
-    state = if state[:source] do
+    {state, account} = if state[:source] do
       case apply(state[:source], :get_cache, [state[:name], default]) do
         {:no_cache, state} ->
+          # 当策略重启时不再从余币宝账户转移资金，以保证余币宝的最大收益
+          # 如果资金账户余额不足，尝试将余币宝内的资金转入到资金账户
+          account = if is_nil(account) || to_float(account["available"]) < state[:balance] do
+            amount = if account, do: state[:balance] - to_float(account["available"]), else: state[:balance]
+            {:ok, _} = AccountAPI.transfer(service, @fund_currency, to_string(amount), 8, 6)
+            {:ok, account} = AccountAPI.get_wallet(service, @fund_currency)
+            account
+          else
+            account
+          end
+
           if is_nil(account) || to_float(account["available"]) < state[:balance] do
-            raise("#{@fund_currency} 账户余额不足 #{state[:balance]}")
+            message = "#{@fund_currency} 账户余额不足 #{state[:balance]}"
+            DingDing.send(message, state[:dingding])
+            raise(message)
           end
 
           message = """
@@ -90,12 +93,12 @@ defmodule Strategy.Exchange.Okex.SwapClient do
           资金配额：#{state[:balance]} USDT
           """
           DingDing.send(message, state[:dingding])
-          state
+          {state, account}
 
-        {:cached, state} -> state
+        {:cached, state} -> {state, account}
       end
     else
-      default
+      {default, account}
     end
 
     # 将资金划入到余币宝
