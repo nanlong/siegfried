@@ -32,12 +32,10 @@ defmodule Siegfried.Strategy do
     |> Repo.insert_or_update()
   end
 
+  # 删除所有相关的缓存配置
   def delete_cache(key) do
-    key = to_string(key)
-    case Repo.get_by(Cache, key: key) do
-      nil -> {:error, :not_found}
-      cache -> Repo.delete(cache)
-    end
+    query = from(c in Cache, where: like(c.key, ^"#{key}%"))
+    Repo.delete_all(query)
   end
 
   def delete_all_cache do
