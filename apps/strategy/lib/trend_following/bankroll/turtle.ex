@@ -92,8 +92,17 @@ defmodule Strategy.TrendFollowing.Bankroll.Turtle do
         {:ok, state}
     end
   end
-  # 持仓状态下，什么也不做
-  def update_position(state), do: {:ok, state}
+  # 持仓状态下，动态更新止损价格
+  def update_position(state) do
+    case klines(state) do
+      [_, %{"close" => price}] ->
+        position = Position.update_close_price(state[:position], price)
+        {:ok, %{state | position: position}}
+
+      _ ->
+        {:ok, state}
+    end
+  end
 
   def signal(trade, %{position: %{status: :empty} = position}) do
     {:wait, position.trend, trade}

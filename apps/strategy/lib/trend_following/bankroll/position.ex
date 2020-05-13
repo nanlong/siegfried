@@ -114,6 +114,18 @@ defmodule Strategy.TrendFollowing.Bankroll.Position do
     |> update(:close_price, close_price)
   end
 
+  def update_close_price(position, price) do
+    diff = position.atr * position.power * position.max
+
+    close_price =
+      case position.trend do
+        :long -> max(price - diff, position.close_price)
+        :short -> min(price + diff, position.close_price)
+      end
+
+    update(position, :close_price, close_price)
+  end
+
   @doc """
   清仓
   """
