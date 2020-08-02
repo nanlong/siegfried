@@ -16,6 +16,7 @@ defmodule Strategy.TrendFollowing.Trader do
       symbol: opts[:symbol],
       systems: opts[:systems],
       backtest: opts[:backtest],
+      source: opts[:source],
     }
     GenStage.start_link(__MODULE__, state, opts)
   end
@@ -108,16 +109,29 @@ defmodule Strategy.TrendFollowing.Trader do
 
     client_name = state[:systems][:client]
     client_module = client_module(state[:exchange], state[:market], state[:backtest])
+    cache_key = "#{state[:symbol]}:position_close_time"
+    now = System.os_time(:second)
+
+    close_time =
+      case state[:source].get_cache(cache_key) do
+        {:cached, time} -> time
+        _ -> nil
+      end
 
     case action do
       :open ->
-        {:ok, order} = apply(client_module, :submit_order, [client_name, signal, position.volume, state])
-        GenServer.call(state[:systems][:bankroll], {:open, trend, order["price"], order["volume"]}, :infinity)
+        # 平仓后暂停24小时
+        if is_nil(close_time) || now > close_time + 86400 do
+          {:ok, order} = apply(client_module, :submit_order, [client_name, signal, position.volume, state])
+          GenServer.call(state[:systems][:bankroll], {:open, trend, order["price"], order["volume"]}, :infinity)
+        end
 
       :close ->
         {:ok, order} = apply(client_module, :submit_order, [client_name, signal, Position.volume(position), state])
         GenServer.call(state[:systems][:bankroll], :close, :infinity)
         GenServer.call(state[:systems][:client], {:profit, state[:symbol], order["filled_cash_amount"]}, :infinity)
+        # 记录平仓时间
+        state[:source].set_cache(cache_key, now)
     end
   end
 

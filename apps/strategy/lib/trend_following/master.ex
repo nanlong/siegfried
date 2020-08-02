@@ -2,17 +2,18 @@ defmodule Strategy.TrendFollowing.Master do
   @moduledoc """
 
   opts = [
-    title: "test",
-    balance: 10000,
+    title: "myokex",
+    balance: 2515,
     exchange: "okex",
     market: "swap",
     symbols: ~w(BTC-USD-SWAP ETH-USD-SWAP EOS-USD-SWAP BCH-USD-SWAP),
-    auth: {"passphrase", "access_key", "secret_key"},
+    auth: {"siegfried", "f4f08729-845e-4352-b196-4b98e6ef57b2", "2AFA216F0065567490B13F4ECD30DA02"},
     source: Siegfried,
     trend: [module: "Macd", period: "1week"],
     breakout: [module: "BollingerBands", period: "1day"],
     bankroll: [period: "1day"],
     trader: [],
+    dingding: "https://oapi.dingtalk.com/robot/send?access_token=b9a187ce8a56665c0c6215233cc97bdd1b5c0ad8dd8c9e342a9c4416a9b219c9",
   ]
 
   Strategy.TrendFollowing.Master.start(opts)
