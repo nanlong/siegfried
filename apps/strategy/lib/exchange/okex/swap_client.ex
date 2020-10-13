@@ -73,7 +73,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
           # 如果资金账户余额不足，尝试将余币宝内的资金转入到资金账户
           account = if is_nil(account) || to_float(account["available"]) < state[:balance] do
             amount = if account, do: state[:balance] - to_float(account["available"]), else: state[:balance]
-            {:ok, _} = AccountAPI.transfer(service, @fund_currency, to_string(amount), 8, 6)
+            {:ok, _} = AccountAPI.purchase_redempt(service, @fund_currency, to_string(amount), "redempt")
             {:ok, account} = AccountAPI.get_wallet(service, @fund_currency)
             account
           else
@@ -103,7 +103,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
 
     # 将资金划入到余币宝
     if account && to_float(account["available"]) > 0 do
-      {:ok, %{"result" => true}} = AccountAPI.transfer(service, @fund_currency, account["available"], 6, 8)
+      {:ok, %{"result" => true}} = AccountAPI.purchase_redempt(service, @fund_currency, account["available"], "purchase")
     end
 
     {:ok, Map.merge(state, %{service: service})}
@@ -176,8 +176,8 @@ defmodule Strategy.Exchange.Okex.SwapClient do
     {:ok, _} = SpotAPI.submit_market_order(state[:service], currency, "sell", size: swap_account["info"]["max_withdraw"])
     {:ok, spot_account_after} = SpotAPI.get_accounts(state[:service], @fund_currency)
 
-    # 卖出之后转入到余币宝
-    {:ok, %{"result" => true}} = AccountAPI.transfer(state[:service], @fund_currency, spot_account_after["available"], 1, 8)
+    # 卖出之后申购余币宝
+    {:ok, %{"result" => true}} = AccountAPI.purchase_redempt(state[:service], @fund_currency, spot_account_after["available"], "purchase")
 
     # 统计盈利情况
     filled_cash_amount = to_float(spot_account_after["available"]) - to_float(spot_account["available"])
@@ -198,7 +198,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
     available = balance * 0.1
 
     # 将资金从余币宝转入到币币账户
-    {:ok, %{"result" => true}} = AccountAPI.transfer(service, @fund_currency, to_string(available), 8, 1)
+    {:ok, %{"result" => true}} = AccountAPI.purchase_redempt(service, @fund_currency, to_string(available), "redempt")
 
     # 购入现货
     if available / price > min_size do

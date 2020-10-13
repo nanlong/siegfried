@@ -41,4 +41,11 @@ defmodule Strategy.Exchange.Okex.AccountAPI do
     body = OkexService.optional_body(body, opts, [:sub_account, :instrument_id, :to_instrument_id])
     OkexService.request(service, :post, path, speed_limit, body: body)
   end
+
+  def purchase_redempt(service, currency, amount, side) do
+    path = "/api/account/v3/purchase_redempt"
+    speed_limit = 6
+    body = %{currency: currency, amount: amount, side: side}
+    OkexService.request(service, :post, path, speed_limit, body: body)
+  end
 end
