@@ -177,6 +177,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
     {:ok, spot_account_after} = SpotAPI.get_accounts(state[:service], @fund_currency)
 
     # 卖出之后申购余币宝
+    {:ok, _} = AccountAPI.transfer(state[:service], @fund_currency, spot_account_after["available"], 1, 6)
     {:ok, %{"result" => true}} = AccountAPI.purchase_redempt(state[:service], @fund_currency, spot_account_after["available"], "purchase")
 
     # 统计盈利情况
@@ -199,6 +200,7 @@ defmodule Strategy.Exchange.Okex.SwapClient do
 
     # 将资金从余币宝转入到币币账户
     {:ok, %{"result" => true}} = AccountAPI.purchase_redempt(service, @fund_currency, to_string(available), "redempt")
+    {:ok, _} = AccountAPI.transfer(service, @fund_currency, to_string(available), 6, 1)
 
     # 购入现货
     if available / price > min_size do
